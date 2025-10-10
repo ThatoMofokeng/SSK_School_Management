@@ -16,7 +16,7 @@ export default function DashboardLayout({
           href="/"
           className="flex items-center justify-center lg:justify-start gap-2"
         >
-          <img src="/SSKLogo02.jpg" alt="logo" width={32} height={32} />
+          <Image src="/SSKLogo02.jpg" alt="logo" width={32} height={32} />
           <span className="hidden lg:block font-bold">SSK Learning</span>
         </Link>
         <Menu />

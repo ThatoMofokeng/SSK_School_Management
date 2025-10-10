@@ -1,6 +1,6 @@
 import Announcements from "@/components/Announcements";
-import BigCalendar from "@/components/BigCalendar";
-import BigCalendarContiner from "@/components/BigCalendarContainer";
+//import BigCalendar from "@/components/BigCalendar";
+import BigCalendarContainer from "@/components/BigCalendarContainer"; // fixed name
 import EventCalender from "@/components/EventCalendar";
 import prisma from "@/lib/prisma";
 import { auth } from "@clerk/nextjs/server";
@@ -22,7 +22,7 @@ const StudentPage = async () => {
           <h1 className="text-xl font-semibold">Schedule (11a)</h1>
 
           {classItem.length > 0 ? (
-            <BigCalendarContiner type="classId" id={classItem[0].id} />
+            <BigCalendarContainer type="classId" id={classItem[0].id} />
           ) : (
             <p className="text-gray-500">No class assigned yet</p>
           )}

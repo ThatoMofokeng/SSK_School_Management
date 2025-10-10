@@ -11,7 +11,8 @@ import { Suspense } from "react";
 import StudentAttendanceCard from "@/components/StudentAttendanceCard";
 import FormContainer from "@/components/FormContainer";
 
-const SingleStudentPage = async ({params: {id}}: { params: {id: string}}) => {
+const SingleStudentPage = async ({params}: { params: Promise<{id: string}>}) => {
+    const {id} = await params;
 
     const {  sessionClaims } = await auth();
     const role = (sessionClaims?.metadata as { role?: string})?.role;

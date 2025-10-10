@@ -11,7 +11,8 @@ import { notFound } from "next/navigation";
 import FormContainer from "@/components/FormContainer";
 import { auth } from "@clerk/nextjs/server";
 
-const SingleTeacherPage = async ({params: {id}}: { params: {id: string}}) => {
+const SingleTeacherPage = async ({params}: { params: Promise<{id: string}>}) => {
+    const {id} = await params;
 
     const {  sessionClaims } = await auth();
     const role = (sessionClaims?.metadata as { role?: string})?.role;
