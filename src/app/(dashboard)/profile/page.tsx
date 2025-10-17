@@ -40,7 +40,8 @@ const ProfilePage = async () => {
       <div className="p-4">
         <h1 className="text-lg font-semibold">Profile</h1>
         <p className="text-gray-500 mt-2">
-          We couldn’t find your profile record.
+        It&apos;s a beautiful day.
+
         </p>
       </div>
     );
