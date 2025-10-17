@@ -14,7 +14,7 @@ const ProfilePage = async () => {
       <div className="p-4">
         <h1 className="text-lg font-semibold">Profile</h1>
         <p className="text-gray-500 mt-2">
-          You're not signed in or your role is missing.
+        You&apos;re not signed in or your role is missing.
         </p>
       </div>
     );
@@ -40,7 +40,7 @@ const ProfilePage = async () => {
       <div className="p-4">
         <h1 className="text-lg font-semibold">Profile</h1>
        
-        <p className="text-gray-500 mt-2">Wecouldnt find your profile record.</p>
+        <p className="text-gray-500 mt-2">We couldn&apos;t find your profile record.</p>
 
       </div>
     );
