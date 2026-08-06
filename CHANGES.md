@@ -92,6 +92,31 @@ OpenSSL version on plain `node:20-slim` and was silently guessing
 container start (`prisma migrate deploy` in `CMD` needs this too, not just
 the build stage).
 
+## 11. Build-time failures: Clerk key + static prerendering of DB pages
+Two related failures showed up once the Docker build got past the earlier
+issues:
+- `Error: @clerk/clerk-react: Missing publishableKey` while prerendering
+  `/list/classes`. `ClerkProvider` wraps the root layout, so *every* page
+  render — including Next.js's build-time static-generation pass — needs
+  `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`. Added it as a Docker `ARG`/`ENV` in
+  the `build` stage of the `Dockerfile`. This is safe to bake in (unlike
+  `DATABASE_URL` or `CLERK_SECRET_KEY`) because `NEXT_PUBLIC_` variables
+  are meant to be public and are compiled into the client bundle anyway.
+  On Render, set it as a normal environment variable in the dashboard —
+  Render automatically exposes dashboard env vars as same-named Docker
+  build args.
+- The list pages under `(dashboard)` query the database directly in
+  Server Components, filtered by the signed-in user's role — Next.js was
+  attempting to statically prerender them anyway, which both risks
+  serving cached data across users and would require a live database
+  connection during the Docker build. Added
+  `export const dynamic = "force-dynamic";` to
+  `src/app/(dashboard)/layout.tsx`, which applies to every page under it,
+  so these routes always render per-request instead. This also means you
+  should **not** need to pass `DATABASE_URL` as a build arg at all — avoid
+  baking a database credential into image layers if you were doing that
+  as a workaround.
+
 ## What you need to do before running this
 1. `cp .env.example .env` and fill in real `DB_USER`/`DB_PASSWORD`/`DB_NAME`
    and your Clerk keys.

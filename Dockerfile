@@ -18,6 +18,18 @@ FROM node:20-slim AS build
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+
+# ClerkProvider wraps the root layout, so every page render — including
+# Next.js's build-time static-generation pass — needs this key available.
+# It's a NEXT_PUBLIC_ variable specifically because it's meant to be
+# public and compiled into the client bundle, so it's safe to bake in
+# at build time (unlike DATABASE_URL or CLERK_SECRET_KEY — see below).
+# On Render, set NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY as a normal environment
+# variable in the dashboard; Render automatically makes dashboard env vars
+# available as Docker build args of the same name.
+ARG NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+ENV NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=$NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+
 RUN npx prisma generate
 RUN npm run build
 
