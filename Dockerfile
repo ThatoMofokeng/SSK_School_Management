@@ -1,7 +1,16 @@
 # ---- deps: install dependencies only ----
 FROM node:20-slim AS deps
 WORKDIR /app
+
+# Prisma's engines need libssl to detect the right OpenSSL variant to
+# download — without this it silently guesses ("openssl-1.1.x") which can
+# mismatch the actual runtime image and break at container start.
+RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+
 COPY package*.json ./
+# `npm ci` runs the `postinstall` script (`prisma generate`), which needs
+# the schema file to exist — copy it in before installing, not after.
+COPY prisma ./prisma
 RUN npm ci
 
 # ---- build: compile the Next.js app ----
@@ -16,6 +25,11 @@ RUN npm run build
 FROM node:20-slim AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
+
+# Needed at runtime too: `prisma migrate deploy` (run in CMD below) and the
+# query engine both need libssl available in this final image, not just
+# the build stages.
+RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
 RUN addgroup --system app && adduser --system --ingroup app app
 

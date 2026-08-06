@@ -80,6 +80,18 @@ failed with `npm error Invalid: lock file's ... does not satisfy ...` on
 `npm ci`. Regenerated it against the corrected `package.json` and verified
 `npm ci` completes cleanly from a clean `node_modules`.
 
+## 10. `Dockerfile` — build-order bug fixed
+`npm ci` runs the `postinstall` script (`prisma generate`), but the `deps`
+stage only copied `package*.json` before running it — `prisma/schema.prisma`
+didn't exist yet in that stage, so the build failed with "Could not find
+Prisma Schema". Fixed by copying `prisma/` into the `deps` stage *before*
+`npm ci` runs. Also added `apt-get install -y openssl` to both the `deps`
+and `runtime` stages: Prisma's engine downloader couldn't detect the
+OpenSSL version on plain `node:20-slim` and was silently guessing
+`openssl-1.1.x`, which risks a mismatch against the actual runtime image at
+container start (`prisma migrate deploy` in `CMD` needs this too, not just
+the build stage).
+
 ## What you need to do before running this
 1. `cp .env.example .env` and fill in real `DB_USER`/`DB_PASSWORD`/`DB_NAME`
    and your Clerk keys.
