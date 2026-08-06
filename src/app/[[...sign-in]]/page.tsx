@@ -20,6 +20,20 @@ const LoginPage = () => {
     }
   }, [user, router]);
 
+  if (isLoaded && isSignedIn && !user?.publicMetadata.role) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-lamaSkyLight">
+        <div className="bg-white p-12 rounded-md shadow-2xl flex flex-col gap-2 text-center">
+          <h1 className="text-xl font-bold">No role assigned</h1>
+          <p className="text-gray-500 text-sm">
+            Your account is signed in but has no role yet. Contact an
+            administrator to assign one before you can continue.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-screen flex items-center justify-center bg-lamaSkyLight">
       <SignIn.Root>
