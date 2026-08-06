@@ -72,6 +72,14 @@ Render would never detect an open port.
   (the real packages `react-hook-form` and `@hookform/resolvers` are still
   present and are what the code actually imports).
 
+## 9. `package-lock.json` — regenerated
+The lockfile was still pinned to the versions from before the `package.json`
+edits above (canary Next.js, old `eslint-config-next`, the removed
+`hook-form`/`resolvers` packages), which is exactly why the Render build
+failed with `npm error Invalid: lock file's ... does not satisfy ...` on
+`npm ci`. Regenerated it against the corrected `package.json` and verified
+`npm ci` completes cleanly from a clean `node_modules`.
+
 ## What you need to do before running this
 1. `cp .env.example .env` and fill in real `DB_USER`/`DB_PASSWORD`/`DB_NAME`
    and your Clerk keys.
