@@ -507,10 +507,10 @@ export const deleteExam = async (
     if (role === "teacher") {
       const exam = await prisma.exam.findUnique({
         where: { id: parseInt(id) },
-        include: { lesson: true },
+        include: { Lesson: true },
       });
 
-      if (!exam || exam.lesson.teacherId !== userId) {
+      if (!exam || exam.Lesson.teacherId !== userId) {
         return { success: false, error: true };
       }
     }

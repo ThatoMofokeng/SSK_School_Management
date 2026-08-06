@@ -31,6 +31,18 @@ ARG NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
 ENV NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=$NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
 
 RUN npx prisma generate
+
+# next build's "Collecting page data" step imports every page module,
+# which imports src/lib/prisma.ts and constructs a PrismaClient at module
+# scope. That constructor validates DATABASE_URL is present even though no
+# query runs yet — so without a value here the build fails with
+# "Invalid value undefined for datasource db". This is a placeholder for
+# build time only; no connection is actually made. The real DATABASE_URL
+# is provided at container runtime (e.g. via `docker run -e` or your
+# platform's env config) and overrides it — see the runtime stage below.
+ARG DATABASE_URL="postgresql://user:password@localhost:5432/db?schema=public"
+ENV DATABASE_URL=$DATABASE_URL
+
 RUN npm run build
 
 # ---- runtime: minimal production image ----
