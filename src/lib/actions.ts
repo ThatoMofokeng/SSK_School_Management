@@ -11,6 +11,7 @@ import {
 import prisma from "./prisma";
 import { clerkClient } from "@clerk/nextjs/server";
 import { requireRole } from "./authz";
+import { logError } from "./logger";
 
 type CurrentState = { success: boolean; error: boolean };
 
@@ -37,7 +38,7 @@ export const createSubject = async (
     revalidatePath("/list/subjects");
     return { success: true, error: false };
   } catch (err) {
-    console.log(err);
+    logError("Server action failed", err, "actions");
     return { success: false, error: true };
   }
 };
@@ -64,7 +65,7 @@ export const updateSubject = async (
     revalidatePath("/list/subjects");
     return { success: true, error: false };
   } catch (err) {
-    console.log(err);
+    logError("Server action failed", err, "actions");
     return { success: false, error: true };
   }
 };
@@ -86,7 +87,7 @@ export const deleteSubject = async (
     revalidatePath("/list/subjects");
     return { success: true, error: false };
   } catch (err) {
-    console.log(err);
+    logError("Server action failed", err, "actions");
     return { success: false, error: true };
   }
 };
@@ -109,7 +110,7 @@ export const createClass = async (
     revalidatePath("/list/classes");
     return { success: true, error: false };
   } catch (err) {
-    console.log(err);
+    logError("Server action failed", err, "actions");
     return { success: false, error: true };
   }
 };
@@ -131,7 +132,7 @@ export const updateClass = async (
     revalidatePath("/list/classes");
     return { success: true, error: false };
   } catch (err) {
-    console.log(err);
+    logError("Server action failed", err, "actions");
     return { success: false, error: true };
   }
 };
@@ -153,7 +154,7 @@ export const deleteClass = async (
     revalidatePath("/list/classes");
     return { success: true, error: false };
   } catch (err) {
-    console.log(err);
+    logError("Server action failed", err, "actions");
     return { success: false, error: true };
   }
 };
@@ -201,7 +202,7 @@ export const createTeacher = async (
     revalidatePath("/list/teachers");
     return { success: true, error: false };
   } catch (err) {
-    console.log(err);
+    logError("Server action failed", err, "actions");
     return { success: false, error: true };
   }
 };
@@ -250,7 +251,7 @@ export const updateTeacher = async (
     revalidatePath("/list/teachers");
     return { success: true, error: false };
   } catch (err) {
-    console.log(err);
+    logError("Server action failed", err, "actions");
     return { success: false, error: true };
   }
 };
@@ -275,7 +276,7 @@ export const deleteTeacher = async (
     revalidatePath("/list/teachers");
     return { success: true, error: false };
   } catch (err) {
-    console.log(err);
+    logError("Server action failed", err, "actions");
     return { success: false, error: true };
   }
 };
@@ -330,7 +331,7 @@ export const createStudent = async (
     revalidatePath("/list/students");
     return { success: true, error: false };
   } catch (err) {
-    console.log(err);
+    logError("Server action failed", err, "actions");
     return { success: false, error: true };
   }
 };
@@ -377,7 +378,7 @@ export const updateStudent = async (
     revalidatePath("/list/students");
     return { success: true, error: false };
   } catch (err) {
-    console.log(err);
+    logError("Server action failed", err, "actions");
     return { success: false, error: true };
   }
 };
@@ -402,7 +403,7 @@ export const deleteStudent = async (
     revalidatePath("/list/students");
     return { success: true, error: false };
   } catch (err) {
-    console.log(err);
+    logError("Server action failed", err, "actions");
     return { success: false, error: true };
   }
 };
@@ -447,7 +448,7 @@ export const createExam = async (
     revalidatePath("/list/exams");
     return { success: true, error: false };
   } catch (err) {
-    console.log(err);
+    logError("Server action failed", err, "actions");
     return { success: false, error: true };
   }
 };
@@ -487,7 +488,7 @@ export const updateExam = async (
     revalidatePath("/list/exams");
     return { success: true, error: false };
   } catch (err) {
-    console.log(err);
+    logError("Server action failed", err, "actions");
     return { success: false, error: true };
   }
 };
@@ -524,7 +525,7 @@ export const deleteExam = async (
     revalidatePath("/list/exams");
     return { success: true, error: false };
   } catch (err) {
-    console.log(err);
+    logError("Server action failed", err, "actions");
     return { success: false, error: true };
   }
 };

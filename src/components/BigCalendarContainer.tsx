@@ -1,6 +1,7 @@
 import prisma from "@/lib/prisma";
 import BigCalendar from "./BigCalendar";
 import { adjustScheduleToCurrentWeek } from "@/lib/utils";
+import { logError } from "@/lib/logger";
 
 const BigCalendarContiner = async ({type, id}:{type: "teacherId" | "classId";
     id: string | number;
@@ -25,7 +26,7 @@ const BigCalendarContiner = async ({type, id}:{type: "teacherId" | "classId";
             <div><BigCalendar data={schedule}/></div>
         );
     } catch (error) {
-        console.error("Error fetching lesson data:", error);
+        logError("Error fetching lesson data", error, "BigCalendarContainer");
         // Return empty calendar on error
         return (
             <div><BigCalendar data={[]}/></div>

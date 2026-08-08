@@ -50,11 +50,9 @@ const ExamForm = ({
   );
 
   const onSubmit = handleSubmit((data) => {
-    console.log(data);
     startTransition(() => {
       formAction(data);
     });
-    //formAction(data);
   });
 
   const router = useRouter();

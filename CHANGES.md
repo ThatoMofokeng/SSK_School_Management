@@ -130,7 +130,16 @@ issues:
 
 ## Still open (not in this pass — see the Phase 1 report for why)
 - Full per-button UI audit of each list page.
-- `prisma/schema.prisma` review (indexes, cascade rules, the
-  `Attandance`/`Announcents` naming typos).
-- Structured error logging in place of bare `console.log(err)`.
+- `prisma/schema.prisma` model renames (`Attandance`/`Announcents` typos) — deferred to avoid a breaking migration.
 - Test suite — there isn't one yet.
+
+## Phase 2 fixes (this commit)
+- **`src/lib/logger.ts`** — structured JSON logging for server errors (replaces bare `console.log(err)`).
+- **`src/lib/env.ts` + `src/instrumentation.ts`** — required env vars fail loudly at server startup, not silently at runtime.
+- **`scripts/start.mjs`** — cross-platform PORT binding for Render (reads `PORT` env var, defaults to 3000).
+- **`src/components/FormContainer.tsx`** — fixed missing `break` after `teacher` case (fall-through bug) and corrected `studentClasses` query (`class.findMany` instead of `grade.findMany`); added `take` limits on dropdown queries.
+- **`src/app/(dashboard)/list/results/page.tsx`** — fixed student name column showing name twice.
+- **Forms** — removed debug `console.log` calls from all form submit handlers.
+- **`.env.example`** — documented `DATABASE_URL`, `DIRECT_URL`, and `PORT`.
+- **`docker-compose.yml`** — passes Clerk keys and `PORT` to the app container.
+- **`prisma/schema.prisma`** — added indexes on foreign keys and commonly filtered columns (`Student`, `Lesson`, `Exam`, `Assignment`, `Result`, `Attandance`).
