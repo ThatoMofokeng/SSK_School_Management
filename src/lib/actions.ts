@@ -176,6 +176,10 @@ export const createTeacher = async (
       password: data.password,
       firstName: data.name,
       lastName: data.surname,
+      // If Clerk's instance requires an email address, omitting it here
+      // left the account "incomplete" and forced a /sign-in/continue step
+      // that the sign-in UI didn't handle. Pass it through when present.
+      ...(data.email ? { emailAddress: [data.email] } : {}),
       publicMetadata: { role: "teacher" },
     });
 
@@ -307,6 +311,10 @@ export const createStudent = async (
       password: data.password,
       firstName: data.name,
       lastName: data.surname,
+      // See note in createTeacher: pass the email through so the Clerk
+      // account isn't left "incomplete" and forced into a /sign-in/continue
+      // step the sign-in UI doesn't handle.
+      ...(data.email ? { emailAddress: [data.email] } : {}),
       publicMetadata: { role: "student" },
     });
 

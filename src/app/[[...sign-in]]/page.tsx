@@ -17,23 +17,33 @@ const LoginPage = () => {
     const role = user?.publicMetadata?.role;
 
     if (role) {
-      router.push(`/${role}`);
+      router.replace(`/${role}`);
     }
   }, [isLoaded, isSignedIn, user, router]);
 
   if (!isLoaded) {
-    return null;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-lamaSkyLight">
+        <div className="text-sm text-gray-500">Loading SSK School Management...</div>
+      </div>
+    );
   }
 
   if (isSignedIn && !user?.publicMetadata?.role) {
     return (
-      <div className="h-screen flex items-center justify-center bg-lamaSkyLight">
-        <div className="bg-white p-12 rounded-md shadow-2xl flex flex-col gap-2 text-center">
-          <h1 className="text-xl font-bold">No role assigned</h1>
-
-          <p className="text-gray-500 text-sm">
-            Your account is signed in but has no role yet. Contact an
-            administrator to assign one before you can continue.
+      <div className="min-h-screen flex items-center justify-center bg-lamaSkyLight px-4">
+        <div className="w-full max-w-md bg-white p-8 sm:p-10 rounded-2xl shadow-xl text-center">
+          <Image
+            src="/SSKLogo02.png"
+            alt="SSK School Management"
+            width={88}
+            height={88}
+            className="mx-auto mb-5 object-contain"
+          />
+          <h1 className="text-xl font-bold text-gray-900">No role assigned</h1>
+          <p className="mt-2 text-sm leading-6 text-gray-500">
+            Your account is signed in but has no role yet. Contact an administrator
+            to assign one before you can continue.
           </p>
         </div>
       </div>
@@ -41,101 +51,76 @@ const LoginPage = () => {
   }
 
   return (
-    <div className="h-screen flex items-center justify-center bg-lamaSkyLight">
+    <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-lamaSkyLight via-white to-slate-50 px-4 py-8">
       <SignIn.Root path="/sign-in">
         <SignIn.Step
           name="start"
-          className="bg-white p-12 rounded-md shadow-2xl flex flex-col gap-4"
+          className="w-full max-w-md bg-white p-7 sm:p-10 rounded-2xl shadow-2xl ring-1 ring-black/5 flex flex-col gap-5"
         >
-          <h1 className="text-xl font-bold flex items-center gap-2">
-            <Image
-              src="/SSKLogo02.jpg"
-              alt="SSK School Management"
-              width={24}
-              height={24}
-            />
-            SSK School Management
-          </h1>
+          <header className="text-center">
+            <div className="mx-auto mb-4 flex h-24 w-24 items-center justify-center rounded-2xl bg-white shadow-md ring-1 ring-gray-100">
+              <Image
+                src="/SSKLogo02.png"
+                alt="SSK School Management logo"
+                width={84}
+                height={84}
+                priority
+                className="h-20 w-20 object-contain"
+              />
+            </div>
+            <h1 className="text-2xl font-bold tracking-tight text-gray-900">
+              SSK School Management
+            </h1>
+            <p className="mt-1 text-sm text-gray-500">
+              Secure school management portal
+            </p>
+          </header>
 
-          <h2 className="text-gray-400">
-            Sign in to your account
-          </h2>
+          <Clerk.GlobalError className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600" />
 
-          <Clerk.GlobalError className="text-sm text-red-400" />
+          <div className="flex flex-col gap-4">
+            <Clerk.Field name="identifier" className="flex flex-col gap-2">
+              <Clerk.Label className="text-xs font-medium text-gray-600">
+                Username or email
+              </Clerk.Label>
+              <Clerk.Input
+                type="text"
+                required
+                autoComplete="username"
+                placeholder="Enter your username or email"
+                className="w-full rounded-lg bg-white px-3 py-2.5 text-sm outline-none ring-1 ring-gray-300 transition focus:ring-2 focus:ring-blue-500 data-[invalid]:ring-red-400"
+              />
+              <Clerk.FieldError className="text-xs text-red-500" />
+            </Clerk.Field>
 
-          <Clerk.Field
-            name="identifier"
-            className="flex flex-col gap-2"
-          >
-            <Clerk.Label className="text-xs text-gray-500">
-              Username
-            </Clerk.Label>
-
-            <Clerk.Input
-              type="text"
-              required
-              className="p-2 rounded-md ring-1 ring-gray-300"
-            />
-
-            <Clerk.FieldError className="text-xs text-red-400" />
-          </Clerk.Field>
-
-          <Clerk.Field
-            name="password"
-            className="flex flex-col gap-2"
-          >
-            <Clerk.Label className="text-xs text-gray-500">
-              Password
-            </Clerk.Label>
-
-            <Clerk.Input
-              type="password"
-              required
-              className="p-2 rounded-md ring-1 ring-gray-300"
-            />
-
-            <Clerk.FieldError className="text-xs text-red-400" />
-          </Clerk.Field>
+            <Clerk.Field name="password" className="flex flex-col gap-2">
+              <Clerk.Label className="text-xs font-medium text-gray-600">
+                Password
+              </Clerk.Label>
+              <Clerk.Input
+                type="password"
+                required
+                autoComplete="current-password"
+                placeholder="Enter your password"
+                className="w-full rounded-lg bg-white px-3 py-2.5 text-sm outline-none ring-1 ring-gray-300 transition focus:ring-2 focus:ring-blue-500 data-[invalid]:ring-red-400"
+              />
+              <Clerk.FieldError className="text-xs text-red-500" />
+            </Clerk.Field>
+          </div>
 
           <SignIn.Action
             submit
-            className="bg-blue-500 text-white my-1 rounded-md text-sm p-[10px]"
+            className="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
           >
             Sign In
           </SignIn.Action>
-        </SignIn.Step>
 
-        <SignIn.Step name="verifications">
-          <SignIn.Strategy name="email_code">
-            <div className="bg-white p-12 rounded-md shadow-2xl flex flex-col gap-4">
-              <h1 className="text-xl font-bold">
-                Verify your email
-              </h1>
-
-              <Clerk.Field name="code">
-                <Clerk.Label className="text-xs text-gray-500">
-                  Verification code
-                </Clerk.Label>
-
-                <Clerk.Input
-                  type="otp"
-                  className="p-2 rounded-md ring-1 ring-gray-300"
-                />
-
-                <Clerk.FieldError className="text-xs text-red-400" />
-              </Clerk.Field>
-
-              <SignIn.Action
-                submit
-                className="bg-blue-500 text-white rounded-md text-sm p-[10px]"
-              >
-                Verify
-              </SignIn.Action>
-            </div>
-          </SignIn.Strategy>
+          <p className="text-center text-xs text-gray-400">
+            SSK School Management System
+          </p>
         </SignIn.Step>
       </SignIn.Root>
-    </div>
+    </main>
   );
 };
 
