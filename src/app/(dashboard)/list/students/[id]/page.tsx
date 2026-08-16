@@ -14,21 +14,45 @@ import FormContainer from "@/components/FormContainer";
 const SingleStudentPage = async ({params}: { params: Promise<{id: string}>}) => {
     const {id} = await params;
 
-    const {  sessionClaims } = await auth();
+    const { userId, sessionClaims } = await auth();
     const role = (sessionClaims?.metadata as { role?: string})?.role;
+
+    // Build authorization-aware query based on role
+    const whereClause: any = { id };
+
+    if (role === "teacher") {
+      // Teachers can only view students in classes they teach
+      whereClause.class = {
+        lessons: {
+          some: {
+            teacherId: userId,
+          },
+        },
+      };
+    } else if (role === "student") {
+      // Students can only view their own profile
+      if (userId !== id) {
+        return notFound();
+      }
+    } else if (role === "parent") {
+      // Parents can only view their own children
+      whereClause.parentId = userId;
+    }
+    // Admin can view any student (no additional filter)
 
     const student:
     | (Student & {
         class: Class & { _count: { lessons: number } };
       })
     | null = await prisma.student.findUnique({
-    where: { id },
+    where: whereClause,
     include: {
       class: { include: { _count: { select: { lessons: true } } } },
     },
   });
 
   if (!student) {
+    // Student not found OR user not authorized to view them
     return notFound();
   }
     return (

@@ -14,10 +14,14 @@ const LoginPage = () => {
   useEffect(() => {
     if (!isLoaded || !isSignedIn) return;
 
-    const role = user?.publicMetadata?.role;
+    const role = user?.publicMetadata?.role as string | undefined;
 
     if (role) {
+      // Redirect to role-specific dashboard
       router.replace(`/${role}`);
+    } else {
+      // User is signed in but has no role - show the no-role message
+      // (handled by the conditional render below)
     }
   }, [isLoaded, isSignedIn, user, router]);
 
@@ -52,7 +56,7 @@ const LoginPage = () => {
 
   return (
     <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-lamaSkyLight via-white to-slate-50 px-4 py-8">
-      <SignIn.Root path="/sign-in">
+      <SignIn.Root>
         <SignIn.Step
           name="start"
           className="w-full max-w-md bg-white p-7 sm:p-10 rounded-2xl shadow-2xl ring-1 ring-black/5 flex flex-col gap-5"

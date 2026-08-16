@@ -14,8 +14,18 @@ import { auth } from "@clerk/nextjs/server";
 const SingleTeacherPage = async ({params}: { params: Promise<{id: string}>}) => {
     const {id} = await params;
 
-    const {  sessionClaims } = await auth();
+    const { userId, sessionClaims } = await auth();
     const role = (sessionClaims?.metadata as { role?: string})?.role;
+
+    // Authorization: Teachers can only view their own profile
+    if (role === "teacher" && userId !== id) {
+        return notFound();
+    }
+    // Students and parents shouldn't access teacher detail pages
+    // (enforced by middleware, but double-check here)
+    if (role === "student" || role === "parent") {
+        return notFound();
+    }
 
     const teacher: (Teacher & {_count:{subjects:number; lessons:number; classes:number}}) | null = await prisma.teacher.findUnique({
         where: {id},

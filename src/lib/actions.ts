@@ -12,8 +12,9 @@ import prisma from "./prisma";
 import { clerkClient } from "@clerk/nextjs/server";
 import { requireRole } from "./authz";
 import { logError } from "./logger";
+import { checkRateLimit, RateLimitError } from "./ratelimit";
 
-type CurrentState = { success: boolean; error: boolean };
+type CurrentState = { success: boolean; error: boolean; message?: string };
 
 // ------------------------------------------------------------------
 // SUBJECT
@@ -24,7 +25,8 @@ export const createSubject = async (
   data: SubjectSchema
 ) => {
   try {
-    await requireRole("admin");
+    const { userId } = await requireRole("admin");
+    await checkRateLimit(userId, "create-subject");
 
     await prisma.subject.create({
       data: {
@@ -38,6 +40,9 @@ export const createSubject = async (
     revalidatePath("/list/subjects");
     return { success: true, error: false };
   } catch (err) {
+    if (err instanceof RateLimitError) {
+      return { success: false, error: true, message: err.message };
+    }
     logError("Server action failed", err, "actions");
     return { success: false, error: true };
   }
@@ -48,7 +53,8 @@ export const updateSubject = async (
   data: SubjectSchema
 ) => {
   try {
-    await requireRole("admin");
+    const { userId } = await requireRole("admin");
+    await checkRateLimit(userId, "update-subject");
 
     await prisma.subject.update({
       where: {
@@ -65,6 +71,9 @@ export const updateSubject = async (
     revalidatePath("/list/subjects");
     return { success: true, error: false };
   } catch (err) {
+    if (err instanceof RateLimitError) {
+      return { success: false, error: true, message: err.message };
+    }
     logError("Server action failed", err, "actions");
     return { success: false, error: true };
   }
@@ -76,7 +85,8 @@ export const deleteSubject = async (
 ) => {
   const id = data.get("id") as string;
   try {
-    await requireRole("admin");
+    const { userId } = await requireRole("admin");
+    await checkRateLimit(userId, "delete-subject");
 
     await prisma.subject.delete({
       where: {
@@ -87,6 +97,9 @@ export const deleteSubject = async (
     revalidatePath("/list/subjects");
     return { success: true, error: false };
   } catch (err) {
+    if (err instanceof RateLimitError) {
+      return { success: false, error: true, message: err.message };
+    }
     logError("Server action failed", err, "actions");
     return { success: false, error: true };
   }
