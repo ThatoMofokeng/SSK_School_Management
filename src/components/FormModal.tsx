@@ -15,20 +15,35 @@ import { Dispatch, SetStateAction, useActionState, useEffect, useState } from "r
 import { toast } from "react-toastify";
 import { FormContainerProps } from "./FormContainer";
 
-const deleteActionMap = {
+// Safety no-op for tables that don't have a real delete action wired up
+// yet. Previously these all pointed at `deleteSubject`, which meant
+// clicking delete on a parent/announcement/etc. would actually delete an
+// unrelated Subject row and report success. This returns a clean error
+// instead until the real actions are built.
+const notImplementedAction = async (
+  _currentState: { success: boolean; error: boolean },
+  _formData: FormData
+) => ({ success: false, error: true });
+
+const deleteActionMap: {
+  [key: string]: (
+    currentState: { success: boolean; error: boolean },
+    formData: FormData
+  ) => Promise<{ success: boolean; error: boolean }>;
+} = {
   subject: deleteSubject,
   class: deleteClass,
   teacher: deleteTeacher,
   student: deleteStudent,
   exam: deleteExam,
-// TODO: OTHER DELETE ACTIONS
-  parent: deleteSubject,
-  lesson: deleteSubject,
-  assignment: deleteSubject,
-  result: deleteSubject,
-  attendance: deleteSubject,
-  event: deleteSubject,
-  announcement: deleteSubject,
+  // TODO: OTHER DELETE ACTIONS — replace with real actions once built
+  parent: notImplementedAction,
+  lesson: notImplementedAction,
+  assignment: notImplementedAction,
+  result: notImplementedAction,
+  attendance: notImplementedAction,
+  event: notImplementedAction,
+  announcement: notImplementedAction,
 };
 
 // USE LAZY LOADING
@@ -134,8 +149,10 @@ const FormModal = ({
         toast(`${table} has been deleted!`);
         setOpen(false);
         router.refresh();
+      } else if (state.error) {
+        toast.error(`Couldn't delete this ${table}. It may not be available yet.`);
       }
-    }, [state, router]);
+    }, [state, router, table]);
 
     return type === "delete" && id ? (
       <form action={formAction} className="p-4 flex flex-col gap-4">
@@ -148,7 +165,14 @@ const FormModal = ({
         </button>
       </form>
     ) : type === "create" || type === "update" ? (
-      forms[table](setOpen, type, data, relatedData)
+      forms[table] ? (
+        forms[table](setOpen, type, data, relatedData)
+      ) : (
+        <div className="p-6 text-center text-sm text-gray-500">
+          {table.charAt(0).toUpperCase() + table.slice(1)} management isn&apos;t
+          available yet.
+        </div>
+      )
     ) : (
       "Form not found!"
     );

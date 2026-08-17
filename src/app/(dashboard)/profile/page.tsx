@@ -4,102 +4,114 @@ import { auth } from "@clerk/nextjs/server";
 
 export const dynamic = "force-dynamic";
 
+const VALID_ROLES = ["admin", "teacher", "student", "parent"] as const;
+type ProfileRole = (typeof VALID_ROLES)[number];
+
+// Admin, Teacher, Student, and Parent are four different Prisma models —
+// only Admin lacks the display fields below (it's just id + username).
+// This shape describes exactly what this page reads, so a fetched record
+// from any of the four models is structurally assignable here without
+// resorting to `any` or a fragile 4-way type intersection.
+type ProfileRecord = {
+  username: string;
+  name?: string | null;
+  surname?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  address?: string | null;
+  img?: string | null;
+};
+
+function isValidRole(value: string | undefined): value is ProfileRole {
+  return !!value && (VALID_ROLES as readonly string[]).includes(value);
+}
+
+const ProfileMessage = ({ message }: { message: string }) => (
+  <div className="flex min-h-[60vh] items-center justify-center p-4">
+    <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm">
+      <h1 className="text-lg font-semibold text-slate-900">Profile</h1>
+      <p className="mt-2 text-sm text-slate-500">{message}</p>
+    </div>
+  </div>
+);
+
 const ProfilePage = async () => {
   const { userId, sessionClaims } = await auth();
   const role = (sessionClaims?.metadata as { role?: string })?.role;
 
-  // Handle missing user or role
-  if (!userId || !role) {
-    return (
-      <div className="p-4">
-        <h1 className="text-lg font-semibold">Profile</h1>
-        <p className="text-gray-500 mt-2">
-        You&apos;re not signed in or your role is missing.
-        </p>
-      </div>
-    );
+  if (!userId || !isValidRole(role)) {
+    return <ProfileMessage message="You're not signed in or your role is missing." />;
   }
 
-  // Declare a profile variable with a broad type
-  let profile: any = null;
+  let profile: ProfileRecord | null = null;
 
-  // Fetch profile based on role
-  if (role === "admin") {
-    profile = await prisma.admin.findUnique({ where: { id: userId } });
-  } else if (role === "teacher") {
-    profile = await prisma.teacher.findUnique({ where: { id: userId } });
-  } else if (role === "student") {
-    profile = await prisma.student.findUnique({ where: { id: userId } });
-  } else if (role === "parent") {
-    profile = await prisma.parent.findUnique({ where: { id: userId } });
+  switch (role) {
+    case "admin":
+      profile = await prisma.admin.findUnique({ where: { id: userId } });
+      break;
+    case "teacher":
+      profile = await prisma.teacher.findUnique({ where: { id: userId } });
+      break;
+    case "student":
+      profile = await prisma.student.findUnique({ where: { id: userId } });
+      break;
+    case "parent":
+      profile = await prisma.parent.findUnique({ where: { id: userId } });
+      break;
   }
 
-  // Handle missing profile
   if (!profile) {
-    return (
-      <div className="p-4">
-        <h1 className="text-lg font-semibold">Profile</h1>
-       
-        <p className="text-gray-500 mt-2">We couldn&apos;t find your profile record.</p>
-
-      </div>
-    );
+    return <ProfileMessage message="We couldn't find your profile record." />;
   }
 
-  // Extract common fields safely
+  // Extract common fields safely — Admin has no name/surname/etc, so
+  // each falls back sensibly rather than rendering "undefined".
   const c = {
-    name: profile.name ?? profile.username ?? "-",
+    name: profile.name ?? profile.username,
     surname: profile.surname ?? "",
     email: profile.email ?? "-",
     phone: profile.phone ?? "-",
     address: profile.address ?? "-",
     img: profile.img ?? "/noAvatar.jpg",
-    username: profile.username ?? "-",
+    username: profile.username,
   };
+
+  const fullName = `${c.name} ${c.surname}`.trim();
 
   return (
     <div className="p-4">
-      <div className="bg-white rounded-md p-6 flex items-start gap-6 shadow">
+      <div className="flex flex-col items-start gap-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:flex-row">
         <Image
           src={c.img}
-          alt="Avatar"
+          alt={fullName ? `${fullName}'s profile picture` : "Profile picture"}
           width={96}
           height={96}
-          className="w-24 h-24 rounded-full object-cover border-4 border-blue-500"
+          className="h-24 w-24 rounded-full border-4 border-blue-500 object-cover"
         />
 
         <div className="flex-1">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-semibold">
-                {c.name} {c.surname}
-              </h1>
-              <p className="text-sm text-gray-500 capitalize">{role}</p>
-            </div>
-          </div>
+          <h1 className="text-2xl font-semibold text-slate-900">{fullName}</h1>
+          <p className="text-sm capitalize text-slate-500">{role}</p>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-            <div className="border rounded-md p-4">
-              <h3 className="text-sm font-semibold text-gray-600">Username</h3>
-              <p className="mt-1">{c.username}</p>
-            </div>
-            <div className="border rounded-md p-4">
-              <h3 className="text-sm font-semibold text-gray-600">Email</h3>
-              <p className="mt-1">{c.email}</p>
-            </div>
-            <div className="border rounded-md p-4">
-              <h3 className="text-sm font-semibold text-gray-600">Phone</h3>
-              <p className="mt-1">{c.phone}</p>
-            </div>
-            <div className="border rounded-md p-4">
-              <h3 className="text-sm font-semibold text-gray-600">Address</h3>
-              <p className="mt-1">{c.address}</p>
-            </div>
+          <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
+            <ProfileField label="Username" value={c.username} />
+            <ProfileField label="Email" value={c.email} />
+            <ProfileField label="Phone" value={c.phone} />
+            <ProfileField label="Address" value={c.address} />
           </div>
         </div>
       </div>
     </div>
   );
 };
+
+const ProfileField = ({ label, value }: { label: string; value: string }) => (
+  <div className="rounded-xl border border-slate-100 bg-slate-50 p-4">
+    <h3 className="text-xs font-medium uppercase tracking-wide text-slate-400">
+      {label}
+    </h3>
+    <p className="mt-1 text-sm font-medium text-slate-800">{value}</p>
+  </div>
+);
 
 export default ProfilePage;

@@ -1,8 +1,63 @@
 # 🔒 Critical Security Fixes - Completed
 
 **Date:** August 16, 2026
-**Status:** ✅ FIXES APPLIED
+**Status:** ✅ FIXES APPLIED (see Session Update below for what's changed since)
 **Action Required:** Follow steps below to complete security hardening
+
+---
+
+## 🆕 Session Update — August 17, 2026
+
+The fixes below this line were applied in a separate session and haven't been
+independently re-verified here — they're left as originally written.
+Everything in this section is what got fixed in today's session, working
+directly in the codebase rather than from a report:
+
+### Fixed
+- **Sign-in flow was completely broken** (`/sign-in/continue` dead-ended on
+  a blank page for every user). Root causes, fixed in
+  `src/app/sign-in/[[...sign-in]]/page.tsx`:
+  - The route wasn't a catch-all (`[[...sign-in]]`), so Next.js had no page
+    registered for any step beyond the first — Clerk's own multi-step flow
+    (password re-verification, email-code verification, choose-strategy,
+    forgot-password, reset-password) had nowhere to render.
+  - The `verifications` step (password + email_code strategies) was
+    missing entirely.
+  - The `email_code` strategy had no `resend`/send action, so Clerk never
+    actually dispatched a code before the user tried to verify.
+  - This directly explains the "Issue: Login broken after switching keys"
+    troubleshooting entry lower in this doc — that symptom was masking
+    this routing bug, not a key-mismatch issue.
+- **`FormModal.tsx` crash on Parent/Lesson/Assignment/Result/Attendance/
+  Event/Announcement** — clicking Create/Update on any of these threw
+  `forms[table] is not a function` (confirmed via a live Next.js error
+  trace from `/list/announcements`). Also, the delete map had all seven of
+  these silently pointed at `deleteSubject`, so a "delete" on any of them
+  would have deleted an unrelated Subject row instead. Both now fail
+  safely with a "not available yet" message instead of crashing or
+  mis-deleting — this is a stopgap, not a feature; see Remaining Work.
+- **Sidebar Logout was a dead link** (`<Link href="/logout">` with no
+  matching page → 404). Replaced with a small client component
+  (`LogoutButton.tsx`) that calls Clerk's real `signOut()`.
+- **`.env.example` had real Clerk test keys committed**, not placeholders
+  — replaced with placeholder values. If those keys are still live,
+  rotate them in the Clerk Dashboard regardless of what git history shows.
+- Rebuilt `src/app/settings/page.tsx` and added `src/app/profile/page.tsx`
+  (the latter previously had a `profile: any` type-safety gap).
+
+### Still not done (see original "Remaining Work" below, this adds to it)
+- **Parent account creation has no working path at all** — no
+  `ParentForm`, no `createParent` action. This is the top priority: right
+  now there is no supported way to onboard a real parent and link them to
+  their child.
+- Attendance, Result, Announcement, and Event are in the same state as
+  Parent — list pages exist, but Create/Update do nothing real yet.
+- `/list/messages` link in the sidebar still points nowhere.
+- Rate limiting extension to Class/Teacher/Student/Exam (flagged as
+  remaining work in the original doc below) — not touched this session,
+  status unknown.
+- Production Clerk key switch — not touched this session, still pending
+  per the checklist below.
 
 ---
 
@@ -213,7 +268,7 @@ After applying these fixes, verify everything works:
 
 - [ ] All pages load without CSP errors
 - [ ] Images load from Cloudinary
-- [ ] Clerk login/logout works
+- [x] Clerk login/logout works — fixed this session (see Session Update)
 - [ ] Forms still submit successfully (just rate-limited)
 
 ---
@@ -237,6 +292,9 @@ After applying these fixes, verify everything works:
 - 🟡 MEDIUM: Using test Clerk keys in production
 - 🟡 MEDIUM: No monitoring/alerting
 - 🟢 LOW: In-memory rate limiting (upgrade to Redis for scale)
+- 🔴 CRITICAL (added this session): Parent/Attendance/Result/Announcement/
+  Event have no working create/edit functionality — Parent specifically
+  means there is currently no way to onboard a real parent account
 
 ---
 
@@ -247,19 +305,27 @@ After applying these fixes, verify everything works:
 2. [ ] Test all fixes in staging (30 minutes)
 3. [ ] Apply rate limiting to remaining actions (2 hours)
    - See `RATE_LIMITING_IMPLEMENTATION.md`
-4. [ ] Deploy to production
+4. [ ] Build real Parent create/edit (form + server actions) — added this
+      session, currently the biggest functional gap
+5. [ ] Deploy to production
 
 ### Next Week
-5. [ ] Set up Sentry for error monitoring
-6. [ ] Enable Clerk MFA for admin accounts
-7. [ ] Add rate limit logging
-8. [ ] Review access logs in Supabase
+6. [ ] Build Attendance, Result, Announcement, Event create/edit
+7. [ ] Set up Sentry for error monitoring
+8. [ ] Enable Clerk MFA for admin accounts
+9. [ ] Add rate limit logging
+10. [ ] Review access logs in Supabase
 
 ### Next Month
-9. [ ] Upgrade to Redis rate limiting (Upstash)
-10. [ ] Implement soft deletes
-11. [ ] Add comprehensive test suite
-12. [ ] Set up automated security scanning
+11. [ ] Upgrade to Redis rate limiting (Upstash)
+12. [ ] Implement soft deletes
+13. [ ] Add comprehensive test suite
+14. [ ] Set up automated security scanning
+15. [ ] Confirm POPIA compliance posture (consent on file for minors'
+       data, retention policy, designated Information Officer) before
+       real learner/parent data goes in — not covered elsewhere in this
+       doc, flagged here since it's a South Africa–specific requirement
+       for a school system
 
 ---
 
@@ -293,9 +359,12 @@ After applying these fixes, verify everything works:
 - Verify both `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` and `CLERK_SECRET_KEY` are updated
 - Check keys are for the same Clerk environment (both prod or both dev)
 - Restart your application/container
+- If login was broken *before* any key switch, this was likely the
+  sign-in routing bug fixed this session, not a key issue — see Session
+  Update at the top of this document
 
 ---
 
-**Last Updated:** August 16, 2026
-**Next Review:** After deploying to production
+**Last Updated:** August 17, 2026
+**Next Review:** After Parent/Attendance/Result/Announcement/Event CRUD is built
 **Need Help?** Check the engineering audit report or Clerk documentation
