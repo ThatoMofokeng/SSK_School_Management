@@ -4,8 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { messageSchema, MessageSchema } from "@/lib/formValidationSchemas";
 import { createMessage } from "@/lib/actions";
-import { useFormState } from "react-dom";
-import { Dispatch, SetStateAction, useEffect, useMemo } from "react";
+import { Dispatch, SetStateAction, startTransition, useActionState, useEffect, useMemo } from "react";
 import { toast } from "react-toastify";
 import { useRouter } from "next/navigation";
 
@@ -43,14 +42,15 @@ const MessageForm = ({
     resolver: zodResolver(messageSchema),
   });
 
-  // AFTER REACT 19 IT'LL BE USEACTIONSTATE
-  const [state, formAction] = useFormState(createMessage, {
+  const [state, formAction] = useActionState(createMessage, {
     success: false,
     error: false,
   });
 
   const onSubmit = handleSubmit((formData) => {
-    formAction(formData);
+    startTransition(() => {
+      formAction(formData);
+    });
   });
 
   const router = useRouter();
