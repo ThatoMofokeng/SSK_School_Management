@@ -127,3 +127,19 @@ export const messageSchema = z.object({
 });
 
 export type MessageSchema = z.infer<typeof messageSchema>;
+
+export const announcementSchema = z.object({
+  id: z.coerce.number().optional(),
+  title: z
+    .string()
+    .min(1, { message: "Title is required!" })
+    .max(150, { message: "Title is too long!" }),
+  description: z
+    .string()
+    .min(1, { message: "Description is required!" })
+    .max(5000, { message: "Description is too long!" }),
+  date: z.string().min(1, { message: "Date is required!" }),
+  classId: z.coerce.number().optional().or(z.literal("")),
+});
+
+export type AnnouncementSchema = z.infer<typeof announcementSchema>;

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import {
+  AnnouncementSchema,
   ClassSchema,
   ExamSchema,
   MessageSchema,
@@ -777,14 +778,83 @@ export const markMessageRead = async (
       "parent"
     );
 
-    // Filtering by receiverId in the same query IS the ownership check —
-    // a user can only ever mark their own received messages as read.
-    await (prisma as any).message.updateMany({
-      where: { id: parseInt(id), receiverId: userId },
-      data: { isRead: true },
+    revalidatePath("/list/messages");
+    return { success: true, error: false };
+  } catch (err) {
+    logError("Server action failed", err, "actions");
+    return { success: false, error: true };
+  }
+};
+
+// ------------------------------------------------------------------
+// ANNOUNCEMENT
+// ------------------------------------------------------------------
+
+export const createAnnouncement = async (
+  currentState: CurrentState,
+  data: AnnouncementSchema
+) => {
+  try {
+    await requireRole("admin");
+
+    await prisma.announcement.create({
+      data: {
+        title: data.title,
+        description: data.description,
+        date: new Date(data.date),
+        classId: data.classId ? Number(data.classId) : null,
+      },
     });
 
-    revalidatePath("/list/messages");
+    revalidatePath("/list/announcements");
+    return { success: true, error: false };
+  } catch (err) {
+    logError("Server action failed", err, "actions");
+    return { success: false, error: true };
+  }
+};
+
+export const updateAnnouncement = async (
+  currentState: CurrentState,
+  data: AnnouncementSchema
+) => {
+  if (!data.id) {
+    return { success: false, error: true };
+  }
+  try {
+    await requireRole("admin");
+
+    await prisma.announcement.update({
+      where: { id: data.id },
+      data: {
+        title: data.title,
+        description: data.description,
+        date: new Date(data.date),
+        classId: data.classId ? Number(data.classId) : null,
+      },
+    });
+
+    revalidatePath("/list/announcements");
+    return { success: true, error: false };
+  } catch (err) {
+    logError("Server action failed", err, "actions");
+    return { success: false, error: true };
+  }
+};
+
+export const deleteAnnouncement = async (
+  currentState: CurrentState,
+  data: FormData
+) => {
+  const id = data.get("id") as string;
+  try {
+    await requireRole("admin");
+
+    await prisma.announcement.delete({
+      where: { id: parseInt(id) },
+    });
+
+    revalidatePath("/list/announcements");
     return { success: true, error: false };
   } catch (err) {
     logError("Server action failed", err, "actions");

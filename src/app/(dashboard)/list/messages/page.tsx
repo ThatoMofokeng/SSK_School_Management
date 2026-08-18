@@ -1,13 +1,32 @@
 import FormContainer from "@/components/FormContainer";
 import MarkMessageReadButton from "@/components/MarkMessageReadButton";
 import Pagination from "@/components/Pagination";
-import Table from "@/components/Table";
 import TableSearch from "@/components/TableSearch";
 import prisma from "@/lib/prisma";
 import { ITEMS_PER_PAGE } from "@/lib/setting";
 import { Message, Prisma } from "@prisma/client";
+import Image from "next/image";
 import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
+
+const avatarPalette = [
+  "bg-lamaSky",
+  "bg-lamaPurple",
+  "bg-lamaYellow",
+];
+
+const avatarColor = (name: string) => {
+  const code = name.charCodeAt(0) || 0;
+  return avatarPalette[code % avatarPalette.length];
+};
+
+const initials = (name: string) =>
+  name
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("") || "?";
 
 const MessageListPage = async ({
   searchParams,
@@ -23,59 +42,68 @@ const MessageListPage = async ({
   const isSent = box === "sent";
   const p = page ? parseInt(page) : 1;
 
-  const columns = [
-    {
-      header: isSent ? "To" : "From",
-      accessor: "party",
-    },
-    {
-      header: "Subject",
-      accessor: "subject",
-    },
-    {
-      header: "Date",
-      accessor: "date",
-      className: "hidden md:table-cell",
-    },
-    {
-      header: "Actions",
-      accessor: "action",
-    },
-  ];
-
   const renderRow = (item: Message) => {
     const partyName = isSent ? item.receiverName : item.senderName;
+    const partyLabel = isSent ? "To" : "From";
     const unread = !isSent && !item.isRead;
 
     return (
-      <tr
+      <div
         key={item.id}
-        className={`border-b border-gray-200 even:bg-slate-50 text-sm hover:bg-lamaPurpleLight ${
-          unread ? "bg-lamaSkyLight" : ""
+        className={`group flex items-start gap-4 px-4 py-4 border-b border-gray-100 hover:bg-lamaPurpleLight/40 transition-colors ${
+          unread ? "bg-lamaSkyLight/60" : ""
         }`}
       >
-        <td className="flex items-center gap-2 p-4">
-          {unread && (
-            <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0" />
-          )}
-          {partyName}
-        </td>
-        <td>
-          <div className={unread ? "font-semibold" : ""}>{item.subject}</div>
-          <div className="text-xs text-gray-500 line-clamp-1 max-w-xs">
-            {item.content}
+        <div
+          className={`w-10 h-10 rounded-full ${avatarColor(
+            partyName
+          )} flex items-center justify-center text-xs font-semibold text-gray-700 shrink-0`}
+        >
+          {initials(partyName)}
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              {unread && (
+                <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0" />
+              )}
+              <span
+                className={`text-sm truncate ${
+                  unread ? "font-semibold text-gray-900" : "font-medium text-gray-800"
+                }`}
+              >
+                {partyName}
+              </span>
+            </div>
+            <span className="text-xs text-gray-400 shrink-0">
+              {new Intl.DateTimeFormat("en-US", {
+                month: "short",
+                day: "numeric",
+                hour: "numeric",
+                minute: "2-digit",
+              }).format(item.createdAt)}
+            </span>
           </div>
-        </td>
-        <td className="hidden md:table-cell">
-          {new Intl.DateTimeFormat("en-US").format(item.createdAt)}
-        </td>
-        <td>
-          <div className="flex items-center gap-3">
-            {unread && <MarkMessageReadButton id={item.id} />}
-            <FormContainer table="message" type="delete" id={item.id} />
+          <div className="text-xs text-gray-400 mt-0.5">
+            {partyLabel}: {isSent ? item.receiverName : item.senderName}
           </div>
-        </td>
-      </tr>
+          <div
+            className={`text-sm mt-1 line-clamp-1 ${
+              unread ? "text-gray-800 font-medium" : "text-gray-500"
+            }`}
+          >
+            {item.subject}
+            {item.subject ? " — " : ""}
+            <span className="font-normal text-gray-500">{item.content}</span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+          {unread && <MarkMessageReadButton id={item.id} />}
+          <FormContainer table="message" type="delete" id={item.id} />
+        </div>
+      </div>
     );
   };
 
@@ -103,9 +131,13 @@ const MessageListPage = async ({
   ]);
 
   return (
-    <div className="bg-white p-4 rounded-md flex-1 m-4 mt-0">
+    <div className="bg-white rounded-md flex-1 m-4 mt-0 overflow-hidden">
       {/* TOP */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between p-4 border-b border-gray-100">
+        <h1 className="text-lg font-semibold text-gray-800">Course Messages</h1>
+        <FormContainer table="message" type="create" />
+      </div>
+      <div className="flex flex-col md:flex-row items-center justify-between gap-4 px-4 py-3 border-b border-gray-100">
         <div className="flex items-center gap-2">
           <Link
             href="/list/messages?box=inbox"
@@ -124,17 +156,23 @@ const MessageListPage = async ({
             Sent
           </Link>
         </div>
-        <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
-          <TableSearch />
-          <div className="flex items-center gap-4 self-end">
-            <FormContainer table="message" type="create" />
-          </div>
-        </div>
+        <TableSearch />
       </div>
       {/* LIST */}
-      <Table columns={columns} renderRow={renderRow} data={data} />
+      {data.length > 0 ? (
+        <div className="flex flex-col">{data.map(renderRow)}</div>
+      ) : (
+        <div className="flex flex-col items-center justify-center gap-3 py-20 text-gray-400">
+          <Image src="/mail.png" alt="" width={40} height={40} className="opacity-40" />
+          <p className="text-sm">
+            {isSent ? "You haven't sent any messages yet." : "Your inbox is empty."}
+          </p>
+        </div>
+      )}
       {/* PAGINATION */}
-      <Pagination page={p} count={count} />
+      <div className="px-2">
+        <Pagination page={p} count={count} />
+      </div>
     </div>
   );
 };

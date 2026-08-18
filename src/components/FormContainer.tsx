@@ -157,6 +157,14 @@ const FormContainer =  async ({
                     relatedData = { recipients };
                     break;
                 }
+                case "announcement": {
+                    const announcementClasses = await prisma.class.findMany({
+                        select: { id: true, name: true },
+                        take: 500,
+                    });
+                    relatedData = { classes: announcementClasses };
+                    break;
+                }
                 default: break;
 
         }

@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  deleteAnnouncement,
   deleteClass,
   deleteExam,
   deleteMessage,
@@ -38,6 +39,7 @@ const deleteActionMap: {
   student: deleteStudent,
   exam: deleteExam,
   message: deleteMessage,
+  announcement: deleteAnnouncement,
   // TODO: OTHER DELETE ACTIONS — replace with real actions once built
   parent: notImplementedAction,
   lesson: notImplementedAction,
@@ -45,7 +47,6 @@ const deleteActionMap: {
   result: notImplementedAction,
   attendance: notImplementedAction,
   event: notImplementedAction,
-  announcement: notImplementedAction,
 };
 
 // USE LAZY LOADING
@@ -69,6 +70,9 @@ const ExamForm = dynamic(() => import("./Forms/ExamForm"), {
   loading: () => <h1>Loading...</h1>,
 });
 const MessageForm = dynamic(() => import("./Forms/MessageForm"), {
+  loading: () => <h1>Loading...</h1>,
+});
+const AnnouncementForm = dynamic(() => import("./Forms/AnnouncementForm"), {
   loading: () => <h1>Loading...</h1>,
 });
 // TODO: OTHER FORMS
@@ -130,6 +134,14 @@ const forms: {
       relatedData={relatedData}
     />
   ),
+  announcement: (setOpen, type, data, relatedData) => (
+    <AnnouncementForm
+      type={type}
+      data={data}
+      setOpen={setOpen}
+      relatedData={relatedData}
+    />
+  ),
 };
 
 const FormModal = ({
@@ -169,7 +181,7 @@ const FormModal = ({
 
     return type === "delete" && id ? (
       <form action={formAction} className="p-4 flex flex-col gap-4">
-        <input type="text | number" name="id" value={id} hidden />
+        <input type="text" name="id" defaultValue={id} hidden />
         <span className="text-center font-medium">
           All data will be lost. Are you sure you want to delete this {table}?
         </span>
@@ -193,12 +205,22 @@ const FormModal = ({
 
   return (
     <>
-      <button
-        className={`${size} flex items-center justify-center rounded-full ${bgColor}`}
-        onClick={() => setOpen(true)}
-      >
-        <Image src={`/${type}.png`} alt="" width={16} height={16} />
-      </button>
+      {table === "message" && type === "create" ? (
+        <button
+          className="flex items-center gap-2 px-4 py-2 rounded-full bg-lamaSky text-sm font-medium text-gray-700 hover:opacity-90"
+          onClick={() => setOpen(true)}
+        >
+          <Image src="/mail.png" alt="" width={16} height={16} />
+          New Message
+        </button>
+      ) : (
+        <button
+          className={`${size} flex items-center justify-center rounded-full ${bgColor}`}
+          onClick={() => setOpen(true)}
+        >
+          <Image src={`/${type}.png`} alt="" width={16} height={16} />
+        </button>
+      )}
       {open && (
         <div className="w-screen h-screen absolute left-0 top-0 bg-black bg-opacity-60 z-50 flex items-center justify-center">
           <div className="bg-white p-4 rounded-md relative w-[90%] md:w-[70%] lg:w-[60%] xl:w-[50%] 2xl:w-[40%]">

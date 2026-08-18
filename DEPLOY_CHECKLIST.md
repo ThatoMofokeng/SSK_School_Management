@@ -1,206 +1,166 @@
-# ⚡ Quick Deploy Checklist - Vercel
+# Deploy Checklist — Vercel
 
-**30-minute deployment guide for SSK School Management**
-
----
-
-## 🎯 Before You Start
-
-✅ GitHub repository ready
-✅ Supabase database active
-✅ Clerk account created
-✅ 30 minutes available
+~30 minutes. Assumes: repo on GitHub, Supabase project provisioned, Clerk
+account exists.
 
 ---
 
-## Step 1: Prepare (5 min)
+## Prerequisites
 
-### Get Your Credentials Ready
-
-**Clerk Production Keys:**
-1. https://dashboard.clerk.com → Switch to "Production"
-2. API Keys → Copy both:
-   - [ ] `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` (pk_live_...)
-   - [ ] `CLERK_SECRET_KEY` (sk_live_...)
-
-**Database URLs:**
-1. https://supabase.com/dashboard → Your Project
-2. Settings → Database → Connection String
-3. Copy both:
-   - [ ] Connection Pooling (port 6543) → `DATABASE_URL`
-   - [ ] Direct Connection (port 5432) → `DIRECT_URL`
+- GitHub repo up to date on `main`
+- Supabase project active (not paused — free-tier projects pause after a
+  week of inactivity, which will make Step 3's deploy fail on the DB
+  connection)
+- Clerk application created
 
 ---
 
-## Step 2: Push to GitHub (5 min)
+## Step 1 — Collect credentials (5 min)
+
+**Clerk (production keys, not test keys):**
+
+1. https://dashboard.clerk.com → switch environment to **Production**
+2. API Keys → copy:
+   - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` — starts with `pk_live_`
+   - `CLERK_SECRET_KEY` — starts with `sk_live_`
+
+**Supabase (two different connection strings — don't mix them up):**
+
+1. https://supabase.com/dashboard → your project → Settings → Database →
+   Connection string
+2. Copy:
+   - **Transaction pooler** (port `6543`) → this is `DATABASE_URL`. Append
+     `?pgbouncer=true` if it's not already there.
+   - **Direct connection** (port `5432`) → this is `DIRECT_URL`. Prisma
+     migrations run through this one, not the pooled one.
+
+If the direct connection times out from your network (some ISPs block the
+IPv6-only direct host), use the **Session pooler** string instead — same
+port pattern, but IPv4-reachable.
+
+---
+
+## Step 2 — Push to GitHub (5 min)
 
 ```bash
-# 1. Check status
 git status
-
-# 2. Add all changes
 git add .
-
-# 3. Commit
-git commit -m "feat: security fixes and deployment prep"
-
-# 4. Push to GitHub
+git commit -m "chore: deployment prep"
 git push -u origin main
 ```
 
-**⚠️ VERIFY:** `.env` is NOT in the commit
+Before pushing, confirm `.env` itself was never committed:
+
 ```bash
-git status | grep .env
-# Should only show .env.example (if anything)
+git log --all --full-history -- .env
 ```
 
----
+No output = clean. If it shows commits, the values in it need to be rotated
+(Clerk keys, DB password) — history rewriting won't undo an exposure once
+it's been pushed.
 
-## Step 3: Deploy to Vercel (10 min)
-
-### Import Project
-
-1. Go to https://vercel.com/new
-2. Click **"Import Git Repository"**
-3. Select **SSK_School_Management**
-4. Click **"Import"**
-
-### Add Environment Variables
-
-Click **"Environment Variables"** and add these 7 variables:
-
-| Variable | Get From | Example |
-|----------|----------|---------|
-| `DATABASE_URL` | Supabase (pooling, port 6543) | `postgresql://...6543/postgres?pgbouncer=true` |
-| `DIRECT_URL` | Supabase (direct, port 5432) | `postgresql://...5432/postgres` |
-| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Clerk (pk_live_...) | `pk_live_...` |
-| `CLERK_SECRET_KEY` | Clerk (sk_live_...) | `sk_live_...` |
-| `NEXT_PUBLIC_CLERK_SIGN_IN_URL` | Type manually | `/sign-in` |
-| `NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL` | Type manually | `/` |
-| `NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL` | Type manually | `/` |
-
-**For each variable:**
-- [ ] Select all 3 environments (Production, Preview, Development)
-- [ ] Click "Add"
-
-### Deploy
-
-1. Click **"Deploy"**
-2. ☕ Wait 2-3 minutes
-3. Build should succeed (green checkmark)
-
-**Your app is now at:** `https://ssk-school-management-{username}.vercel.app`
+**Also check `.env.example`.** It should contain placeholder values only —
+things like `your_key_here` — never real key strings, even test-environment
+ones. If any real-looking key is sitting in `.env.example`, rotate it and
+replace it with a placeholder before pushing; a committed example file is
+exactly as public as your repo.
 
 ---
 
-## Step 4: Configure Clerk (5 min)
+## Step 3 — Deploy to Vercel (10 min)
 
-### Add Vercel Domain
+1. https://vercel.com/new → **Import Git Repository** → select this repo →
+   **Import**
+2. Add environment variables (all 7, all three environments — Production /
+   Preview / Development):
 
-1. https://dashboard.clerk.com
-2. Ensure "Production" environment selected
-3. Go to **Domains**
-4. Click **"Add domain"**
-5. Enter: `ssk-school-management-{username}.vercel.app`
-6. Save
+   | Variable | Value |
+   |---|---|
+   | `DATABASE_URL` | Supabase pooled string, port 6543, `?pgbouncer=true` |
+   | `DIRECT_URL` | Supabase direct (or session pooler) string, port 5432 |
+   | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | `pk_live_...` |
+   | `CLERK_SECRET_KEY` | `sk_live_...` |
+   | `NEXT_PUBLIC_CLERK_SIGN_IN_URL` | `/sign-in` |
+   | `NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL` | `/` |
+   | `NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL` | `/` |
 
-### Update Paths
+   If you're using Cloudinary for image uploads, also add
+   `NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME` (and `CLOUDINARY_API_KEY` /
+   `CLOUDINARY_API_SECRET` if you're doing signed uploads).
 
-1. Still in Clerk Dashboard
-2. Go to **Paths**
-3. Set these values:
+3. Click **Deploy**.
+
+`npm install` runs `postinstall` → `prisma generate` automatically (already
+wired up in `package.json`), so the Prisma Client gets built fresh on every
+deploy — you don't need a manual step for that here. Migrations are separate
+though: if this deploy includes schema changes not yet applied to the
+Supabase database, run `npx prisma migrate deploy` (or `npx prisma db push`
+for a quick non-production sync) against `DIRECT_URL` **before** deploying,
+since Vercel's build step does not run migrations for you.
+
+Your app will be live at `https://<project-name>-<username>.vercel.app`.
+
+---
+
+## Step 4 — Configure Clerk for the new domain (5 min)
+
+1. Clerk dashboard → confirm **Production** environment is selected
+2. **Domains** → Add domain → enter the Vercel URL from Step 3
+3. **Paths** → set:
    - Sign-in URL: `/sign-in`
    - After sign-in: `/`
-4. Save
 
 ---
 
-## Step 5: Verify (5 min)
+## Step 5 — Verify (5 min)
 
-### Test Critical Functions
-
-1. **Visit your app:**
-   ```
-   https://ssk-school-management-{username}.vercel.app
-   ```
-   - [ ] Page loads (redirects to /sign-in)
-
-2. **Test login:**
-   - [ ] Enter credentials
-   - [ ] Successfully logs in
-   - [ ] Redirects to dashboard
-
-3. **Test database:**
-   - [ ] Go to /list/students
-   - [ ] List loads (empty is OK)
-   - [ ] No errors in console
-
-4. **Test security:**
-   ```bash
-   curl -I https://your-app.vercel.app | grep "X-Frame-Options"
-   ```
-   - [ ] Shows: `X-Frame-Options: SAMEORIGIN`
-
-5. **Test rate limiting:**
-   - [ ] Try creating 6 subjects rapidly
-   - [ ] 6th request fails with rate limit error
+- [ ] App loads at the Vercel URL and redirects to `/sign-in` when logged out
+- [ ] Login succeeds and lands on the dashboard
+- [ ] `/list/students` loads without errors (empty list is fine)
+- [ ] `/list/messages` loads without errors — this route depends on
+      `routeAccessMap` in `src/lib/setting.ts` having an entry for it; if it's
+      missing, logged-out requests slip past the middleware and the page
+      crashes on a null `userId` instead of redirecting
+- [ ] `curl -I https://<your-app>.vercel.app | grep X-Frame-Options` returns
+      `X-Frame-Options: SAMEORIGIN`
+- [ ] Creating 6 subjects in quick succession fails on the 6th (rate limit)
+      — note this only proves Subject is covered; Class/Teacher/Student/Exam
+      aren't rate-limited yet
 
 ---
 
-## ✅ Success Checklist
+## Troubleshooting
 
-- [ ] App loads at Vercel URL
-- [ ] Login works
-- [ ] Dashboard displays
-- [ ] Database connected
-- [ ] Security headers active
-- [ ] No console errors
-- [ ] Rate limiting works
+**"Invalid Clerk keys"** — you're probably still on `pk_test_*`/`sk_test_*`.
+Confirm you copied from the Production environment in Clerk, and that the
+Vercel domain is added under Clerk → Domains.
 
----
+**Database connection fails** — check `DATABASE_URL` has `?pgbouncer=true`;
+confirm the Supabase project isn't paused; confirm you didn't swap
+`DATABASE_URL` and `DIRECT_URL`.
 
-## 🚨 Quick Fixes
+**Build fails** — check the Vercel build log for the actual error first;
+usually a missing env var. Confirm all 7 (or more, with Cloudinary) are set
+for the environment that's building.
 
-### "Invalid Clerk keys"
-→ Check you're using `pk_live_*` not `pk_test_*`
-→ Verify domain added to Clerk
+**Prisma error about a missing table/column after deploy** — the schema and
+the live database are out of sync. Run `npx prisma migrate status` locally
+against `DIRECT_URL` to see what's pending, then `npx prisma migrate deploy`.
+Do not run `prisma migrate reset` against a database with real data in it —
+it drops everything.
 
-### "Database connection failed"
-→ Check `DATABASE_URL` has `?pgbouncer=true`
-→ Verify Supabase project is active
-
-### "Build failed"
-→ Check Vercel build logs for specific error
-→ Verify all env vars are set
-→ Try redeploying
-
-### "CSP blocking resources"
-→ Open DevTools → Console
-→ Check for CSP violation errors
-→ Add blocked domain to `next.config.mjs`
+**CSP blocking a resource** — open DevTools → Console on the deployed app,
+find the blocked domain in the CSP violation message, add it to the
+`Content-Security-Policy` header in `next.config.mjs`, redeploy.
 
 ---
 
-## 🎉 You're Live!
+## After deploy
 
-**Next Steps:**
-
-1. **Monitor for 24 hours:**
-   - Vercel Dashboard → Logs
-   - Watch for errors
-
-2. **Test with real users:**
-   - Have 2-3 people try it
-   - Note any issues
-
-3. **Set up monitoring:**
-   - Enable Vercel Analytics
-   - Add Sentry for errors
-
-**Need detailed help?** See `VERCEL_DEPLOYMENT_GUIDE.md`
-
----
-
-**Deployed:** [Date]
-**URL:** https://ssk-school-management-{username}.vercel.app
-**Status:** 🟢 Live
+- Watch Vercel → Logs for the first 24h for anything unexpected
+- Have a couple of real users click through Students/Teachers/Messages/
+  Announcements before calling it done
+- Rate limiting and role-based access are only as complete as the current
+  state of `src/lib/actions.ts` / `src/components/FormModal.tsx` — see
+  `FIXES_SUMMARY.md`'s "Known gaps" section for what's still stubbed out
+  (`lesson`, `assignment`, `result`, `attendance`, `event`)

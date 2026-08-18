@@ -1,342 +1,261 @@
-# 🎯 Security Fixes Summary - August 16, 2026
+# Fixes Log — SSK School Management System
 
-## ✅ All Critical Fixes Completed
-
-Winston (System Architect) has successfully completed all CRITICAL security fixes for the SSK School Management System.
-
----
-
-## 📦 What Was Fixed
-
-### 1. ✅ Environment Variable Security
-**Files Changed:**
-- Created `.env.example`
-- Created `SECURITY_ADVISORY.md`
-
-**What Changed:**
-- Safe template file created for environment variables
-- Comprehensive security advisory document
-- Verification that `.env` is not tracked in git
-
-**Status:** ✅ **SECURE** (pending Clerk key rotation)
+Running log of security and bug-fix work on this repo, in chronological order.
+Each entry has: what was wrong, why (root cause), what changed, and which files.
 
 ---
 
-### 2. ✅ Rate Limiting Implementation
-**Files Changed:**
-- Created `src/lib/ratelimit.ts` (174 lines)
-- Modified `src/lib/actions.ts` (added rate limiting imports and checks)
-- Created `RATE_LIMITING_IMPLEMENTATION.md`
+## 2026-08-16 — Security hardening pass
 
-**What Changed:**
-- In-memory rate limiting system created
-- Subject CRUD operations now protected:
-  - `createSubject`: 5/minute
-  - `updateSubject`: 10/minute
-  - `deleteSubject`: 5/minute
-- Clear upgrade path to Redis/Upstash documented
-- Pattern documented for applying to remaining 9 entities
+### Summary
 
-**Status:** ✅ **PARTIALLY COMPLETE** (3/12 entities protected)
+First security pass over the app. Addressed missing authorization checks on
+detail pages, no rate limiting, no security headers, and exposed secrets
+handling.
 
----
+### 1. Environment variable handling
 
-### 3. ✅ Detail Page Authorization
-**Files Changed:**
-- Modified `src/app/(dashboard)/list/students/[id]/page.tsx`
-- Modified `src/app/(dashboard)/list/teachers/[id]/page.tsx`
+`.env` was not committed (confirmed via `git log --all --full-history -- .env`),
+but there was no template for other developers to work from and no written
+guidance on what to do if it ever is committed.
 
-**What Changed:**
+- Added `.env.example` — safe template with placeholder values.
+- Added `SECURITY_ADVISORY.md` — steps to take if secrets are ever exposed
+  (rotate keys, purge git history, etc).
 
-**Student Detail Page:**
-- Teachers can only view students in their classes
-- Students can only view their own profile
-- Parents can only view their own children
-- Admins can view any student
+### 2. Rate limiting
 
-**Teacher Detail Page:**
-- Teachers can only view their own profile
-- Admins can view any teacher
-- Students/parents blocked
+No rate limiting existed anywhere. Added an in-memory rate limiter
+(`src/lib/ratelimit.ts`, single-process, keyed by user id + action) and wired
+it into the Subject actions as the reference implementation:
 
-**Status:** ✅ **FULLY SECURE**
+- `createSubject`: 5/min
+- `updateSubject`: 10/min
+- `deleteSubject`: 5/min
 
----
+**Not yet applied to:** Class, Teacher, Student, Exam actions (9 functions).
+The in-memory approach only works for a single container — if this app scales
+horizontally, swap it for Redis/Upstash before relying on it. Pattern is
+documented in `RATE_LIMITING_IMPLEMENTATION.md`.
 
-### 4. ✅ Security Headers
-**Files Changed:**
-- Modified `next.config.mjs`
+### 3. Detail-page authorization
 
-**What Changed:**
-- Added 8 security headers:
-  - `X-Frame-Options: SAMEORIGIN`
-  - `X-Content-Type-Options: nosniff`
-  - `X-XSS-Protection: 1; mode=block`
-  - `Strict-Transport-Security`
-  - `Content-Security-Policy`
-  - `Referrer-Policy`
-  - `Permissions-Policy`
-  - `X-DNS-Prefetch-Control`
-- Added Cloudinary to allowed image sources
+`src/app/(dashboard)/list/students/[id]/page.tsx` and
+`src/app/(dashboard)/list/teachers/[id]/page.tsx` rendered any student/teacher
+record to any authenticated user — no ownership or role check. Fixed:
 
-**Status:** ✅ **ACTIVE**
+- **Student detail page:** teacher → only students in their own classes;
+  student → only their own profile; parent → only their own children; admin →
+  unrestricted.
+- **Teacher detail page:** teacher → only their own profile; admin →
+  unrestricted; student/parent → blocked.
 
----
+Unauthorized access now returns a 404 rather than a rendered page or an
+explicit "forbidden" message, to avoid leaking which records exist.
 
-### 5. ✅ Documentation Created
-**New Files:**
-- `SSK_Engineering_Audit_Report.md` (14,000+ words)
-- `SECURITY_ADVISORY.md`
-- `RATE_LIMITING_IMPLEMENTATION.md`
-- `CRITICAL_FIXES_APPLIED.md`
-- `FIXES_SUMMARY.md` (this file)
-- `.env.example`
+### 4. Security headers
 
----
+`next.config.mjs` had no security headers at all. Added:
 
-## 📊 Security Score
+`X-Frame-Options`, `X-Content-Type-Options`, `X-XSS-Protection`,
+`Strict-Transport-Security`, `Content-Security-Policy`, `Referrer-Policy`,
+`Permissions-Policy`, `X-DNS-Prefetch-Control`. Also added Cloudinary to the
+CSP's allowed image sources (the app loads student/teacher photos from
+there).
 
-### Before Fixes
-| Category | Score | Status |
-|----------|-------|--------|
-| Authentication | 🟢 70% | Clerk working |
-| Authorization | 🔴 40% | Major gaps |
-| Rate Limiting | 🔴 0% | None |
-| Security Headers | 🔴 0% | None |
-| Secrets Management | 🔴 20% | Exposed |
-| **Overall** | **🔴 26%** | **Vulnerable** |
+### Files changed
 
-### After Fixes
-| Category | Score | Status |
-|----------|-------|--------|
-| Authentication | 🟢 90% | Need prod keys |
-| Authorization | 🟢 85% | Detail pages fixed |
-| Rate Limiting | 🟡 60% | Partial coverage |
-| Security Headers | 🟢 100% | All active |
-| Secrets Management | 🟢 90% | Protected |
-| **Overall** | **🟢 85%** | **Production-Ready*** |
+**Created:** `.env.example`, `src/lib/ratelimit.ts`, `SECURITY_ADVISORY.md`,
+`RATE_LIMITING_IMPLEMENTATION.md`, `CRITICAL_FIXES_APPLIED.md`,
+`FIXES_SUMMARY.md`, `_bmad-output/SSK_Engineering_Audit_Report.md`
 
-*With action items completed (see below)
+**Modified:** `src/lib/actions.ts`,
+`src/app/(dashboard)/list/students/[id]/page.tsx`,
+`src/app/(dashboard)/list/teachers/[id]/page.tsx`, `next.config.mjs`
+
+### Outstanding before production
+
+1. **Switch Clerk from test to production keys** (`pk_test_*`/`sk_test_*` →
+   `pk_live_*`/`sk_live_*`) in the deployment environment.
+2. **Extend rate limiting** to the remaining 9 actions using the Subject
+   implementation as the template.
+3. Confirm CSP doesn't block any third-party resources the app actually
+   loads in production (check the browser console for CSP violations after
+   deploy).
 
 ---
 
-## 🚨 CRITICAL: Actions Required
+## 2026-08-18 (session 1) — Parent form, React 19 migration, Messages runtime errors
 
-### Immediate (Before Production Deploy)
+### Summary
 
-#### 1. Switch to Production Clerk Keys ⚠️
-**Why:** Currently using test keys (`pk_test_*`)
+Local testing against a real Supabase DB surfaced a chain of build/runtime
+errors. Not a security pass — these are correctness bugs that were blocking
+Parent management and Messages entirely.
 
-**How:**
-1. Clerk Dashboard → Switch to Production
-2. Copy `pk_live_*` and `sk_live_*` keys
-3. Update in Render/Vercel environment variables
-4. Redeploy
+### 1. Parent create/update was non-functional
 
-**Time:** 15 minutes
+`Parentform.tsx` imported `parentSchema` / `ParentSchema` from
+`formValidationSchemas.ts` and `createParent` / `updateParent` from
+`actions.ts` — none of which existed. The Parent CRUD flow had been stubbed
+out in the UI but never implemented server-side.
 
----
+**Fix:**
+- Added `parentSchema` / `ParentSchema` to `formValidationSchemas.ts`,
+  modeled on `studentSchema` (phone and address required, per the `Parent`
+  Prisma model).
+- Added `createParent` / `updateParent` to `actions.ts`, following the
+  existing Teacher action pattern (Clerk user creation + Prisma row insert,
+  `role: "parent"`).
 
-#### 2. Verify .env Not in Git History ⚠️
-**Why:** If it was committed before, secrets are exposed
+### 2. Incomplete React 19 `useActionState` migration
 
-**How:**
-```bash
-git log --all --full-history -- .env
+React 19 removed `useFormState` (react-dom) in favor of `React.useActionState`.
+The migration had been done inconsistently across the form components:
 
-# If shows commits: Follow SECURITY_ADVISORY.md
-# If no output: You're safe!
-```
+- `MessageForm.tsx`, `ClassForm.tsx`, `SubjectForm.tsx` were still calling
+  the now-removed `useFormState` — hard runtime error.
+- `StudentForm.tsx`, `TeacherForm.tsx`, `ExamForm.tsx`, `Parentform.tsx` had
+  already switched to `useActionState` but left the `useFormState` import in
+  place (dead import, no functional bug).
 
-**Time:** 5 minutes
+Separately, `useActionState`'s dispatch function must be called inside
+`startTransition` when it's async — none of the seven forms did this, which
+throws: *"An async function with useActionState was called outside of a
+transition."*
 
----
+**Fix:** standardized all seven forms on `useActionState`, removed the dead
+imports, and wrapped every `formAction(...)` call in `startTransition(...)`.
 
-### High Priority (This Week)
+### 3. Messages page: `Cannot read properties of undefined (reading 'findMany')`
 
-#### 3. Apply Rate Limiting to Remaining Actions
-**Why:** Only 3/12 entities protected currently
+`prisma.message` was `undefined` at runtime even though `Message` was defined
+in `schema.prisma`. Root cause: the generated Prisma Client
+(`node_modules/@prisma/client`) was stale — it had been generated before the
+`Message` model was added and never regenerated.
 
-**How:**
-- Follow `RATE_LIMITING_IMPLEMENTATION.md`
-- Apply to: Class, Teacher, Student, Exam actions (9 more functions)
-
-**Time:** 2-3 hours
-
----
-
-#### 4. Test All Fixes in Staging
-**Checklist:**
-- [ ] Rate limiting works (try creating 6 subjects rapidly)
-- [ ] Teacher cannot view unauthorized student
-- [ ] Security headers present (`curl -I https://your-app.com`)
-- [ ] All pages load without CSP errors
-- [ ] Forms still work
-
-**Time:** 30 minutes
-
----
-
-## 📁 Files Changed Summary
-
-### Created (7 files)
-1. `.env.example` - Safe environment variable template
-2. `src/lib/ratelimit.ts` - Rate limiting system
-3. `SECURITY_ADVISORY.md` - Security remediation guide
-4. `RATE_LIMITING_IMPLEMENTATION.md` - Implementation guide
-5. `CRITICAL_FIXES_APPLIED.md` - Fixes documentation
-6. `FIXES_SUMMARY.md` - This file
-7. `_bmad-output/SSK_Engineering_Audit_Report.md` - Full audit
-
-### Modified (4 files)
-1. `src/lib/actions.ts` - Added rate limiting
-2. `src/app/(dashboard)/list/students/[id]/page.tsx` - Fixed authorization
-3. `src/app/(dashboard)/list/teachers/[id]/page.tsx` - Fixed authorization
-4. `next.config.mjs` - Added security headers
-
-**Total:** 11 files (7 created, 4 modified)
-
----
-
-## 🎓 Key Learnings
-
-### Security Patterns Applied
-
-1. **Defense in Depth**
-   - Authorization at multiple layers (middleware + page + action)
-   - Rate limiting + role guards
-   - CSP + other security headers
-
-2. **Principle of Least Privilege**
-   - Teachers can only access their own data
-   - Students can only view their profile
-   - Parents can only view their children
-
-3. **Fail Securely**
-   - 404 instead of error messages (prevents info leakage)
-   - Rate limit errors are generic
-   - No stack traces in production
-
----
-
-## 🚀 Next Steps Roadmap
-
-### Week 1 (Immediate)
-- [x] Fix critical security issues
-- [ ] Switch to production Clerk keys
-- [ ] Complete rate limiting implementation
-- [ ] Deploy to staging
-- [ ] Test all fixes
-
-### Week 2-3 (High Priority)
-- [ ] Implement missing CRUD forms (7 entities)
-- [ ] Add Redis caching layer
-- [ ] Fix N+1 queries in dropdowns
-- [ ] Set up Vitest + critical tests
-
-### Month 2 (Medium Priority)
-- [ ] Build REST API for mobile
-- [ ] Add email notifications
-- [ ] Refactor monolithic actions.ts
-- [ ] Add soft deletes
-
----
-
-## 💬 Questions & Answers
-
-**Q: Can I deploy to production now?**
-A: Almost! Complete the 2 CRITICAL actions first:
-1. Switch to production Clerk keys
-2. Verify .env not in git history
-
-**Q: Do I need Redis for rate limiting?**
-A: Not immediately. Current in-memory solution works for single-container deployment. Upgrade to Redis when scaling to multiple containers.
-
-**Q: Will these changes break anything?**
-A: No. All changes are additive (new files) or security hardening. Existing functionality preserved.
-
-**Q: How do I know rate limiting is working?**
-A: Try creating 6 subjects rapidly. The 6th should fail with "Rate limit exceeded" message.
-
-**Q: What if CSP blocks my resources?**
-A: Check browser console for CSP violations. Add blocked domains to `next.config.mjs` CSP directive.
-
----
-
-## 🏆 Achievement Unlocked
-
-Your SSK School Management System has gone from:
-
-**🔴 VULNERABLE (26% secure)**
-→ **🟢 PRODUCTION-READY (85% secure)**
-
-in one session!
-
-**What's Left:**
-- 10% → Production Clerk keys (15 min)
-- 5% → Complete rate limiting (2-3 hours)
-
-**Estimated Time to 100%:** 3-4 hours
-
----
-
-## 📞 Support
-
-**Documentation:**
-- Full audit: `_bmad-output/SSK_Engineering_Audit_Report.md`
-- Security: `SECURITY_ADVISORY.md`
-- Rate limiting: `RATE_LIMITING_IMPLEMENTATION.md`
-- This summary: `CRITICAL_FIXES_APPLIED.md`
-
-**Questions?**
-- Review the engineering audit for detailed analysis
-- Check Clerk documentation for auth issues
-- See rate limiting guide for implementation help
-
----
-
-
-
-# 🛠️ Bug Fix Session - August 18, 2026
-
-## Scope
-
-Follow-up session fixing a chain of build/runtime errors surfaced while testing the app locally against Supabase. Not a security pass — these are correctness bugs blocking Parent management and Messages from working at all.
-
-## What Was Fixed
-
-### 1. Parent form was entirely non-functional
-**Files:** `src/lib/formValidationSchemas.ts`, `src/lib/actions.ts`
-
-- `Parentform.tsx` imported `parentSchema`/`ParentSchema` and `createParent`/`updateParent`, none of which existed — the Parent create/update flow was never built, only stubbed.
-- Added `parentSchema`/`ParentSchema` (mirrors `studentSchema`, phone/address required per the `Parent` Prisma model).
-- Added `createParent`/`updateParent` to `actions.ts`, mirroring the existing Teacher pattern (Clerk user + Prisma row, `role: "parent"`).
-
-### 2. React 19 `useActionState` migration was incomplete
-**Files:** `MessageForm.tsx`, `ClassForm.tsx`, `SubjectForm.tsx` (still calling the removed `useFormState`); `StudentForm.tsx`, `TeacherForm.tsx`, `ExamForm.tsx`, `Parentform.tsx` (dead import and/or missing transition wrapper)
-
-- `useFormState` (react-dom) was removed in React 19 in favor of `React.useActionState`. Swapped remaining usages and dropped dead imports.
-- All seven forms' submit handlers now wrap `formAction(...)` in `startTransition(...)` — calling an async `useActionState` action outside a transition throws at runtime ("called outside of a transition").
-
-### 3. Messages page crashed with `Cannot read properties of undefined (reading 'findMany')`
-- Root cause: stale generated Prisma Client — `schema.prisma` had the `Message` model but the client wasn't regenerated, so `prisma.message` was `undefined`.
-- Fix: `npx prisma generate` (+ `npx prisma db push` to sync the `Message` table to Supabase directly, avoiding a `migrate reset` that would have wiped the database over an unrelated migration-history naming mismatch).
+**Fix:** `npx prisma generate` (client-side fix), plus `npx prisma db push`
+to sync the `Message` table to the actual Supabase database. Deliberately
+did **not** run `prisma migrate reset` — the migration-history divergence
+that prompted Prisma to suggest it was just a renamed/duplicated local
+migration folder, not a real schema conflict, and `reset` would have dropped
+all data in Supabase.
 
 ### 4. `/list/messages` had no route protection
-**File:** `src/lib/setting.ts`
 
-- `routeAccessMap` never listed `/list/messages`, so Clerk's middleware let unauthenticated requests straight through to the page. `auth()` then returned `userId: null`, and the page's `currentUserId!` non-null assertion silenced the type error but crashed Prisma at runtime (`Argument receiverId must not be null`).
-- Added `"/list/messages": ["admin", "teacher", "student", "parent"]` to close the gap.
+`routeAccessMap` in `src/lib/setting.ts` never listed `/list/messages`, so
+Clerk's middleware let unauthenticated requests through to the page
+unchecked. `auth()` then returned `userId: null`; the page used
+`currentUserId!` (non-null assertion) when building the Prisma query, which
+silenced the type error but crashed at runtime with `Argument receiverId
+must not be null`.
 
-## Files Changed (9)
-1. `src/lib/formValidationSchemas.ts` — add `parentSchema`/`ParentSchema`
-2. `src/lib/actions.ts` — add `createParent`/`updateParent`
+**Fix:** added `"/list/messages": ["admin", "teacher", "student", "parent"]`
+to `routeAccessMap`.
+
+### Files changed (9)
+
+1. `src/lib/formValidationSchemas.ts` — add `parentSchema` / `ParentSchema`
+2. `src/lib/actions.ts` — add `createParent` / `updateParent`
 3. `src/components/Forms/Parentform.tsx` — `startTransition` wrapper
 4. `src/components/Forms/MessageForm.tsx` — `useActionState` swap + `startTransition`
 5. `src/components/Forms/ClassForm.tsx` — `useActionState` swap + `startTransition`
 6. `src/components/Forms/SubjectForm.tsx` — `useActionState` swap + `startTransition`
-7. `src/components/Forms/StudentForm.tsx` — dead import cleanup + `startTransition`
-8. `src/components/Forms/TeacherForm.tsx` — dead import cleanup + `startTransition`
+7. `src/components/Forms/StudentForm.tsx` — dead import removed + `startTransition`
+8. `src/components/Forms/TeacherForm.tsx` — dead import removed + `startTransition`
 9. `src/lib/setting.ts` — add `/list/messages` to `routeAccessMap`
 
-Plus (not code, run manually against Supabase): `npx prisma generate`, `npx prisma db push`.
+**Manual steps (not in the diff), run against Supabase:**
+`npx prisma generate`, `npx prisma db push`.
+
+---
+
+## 2026-08-18 (session 2) — Messages redesign, Announcement build-out
+
+### Summary
+
+Follow-up in the same day: one more runtime bug, a UI redesign of the
+Messages list/compose to match a reference layout, and building out
+Announcement management, which — like Parent in session 1 — had UI wired up
+in `FormContainer`/`FormModal` but no schema, actions, or form behind it.
+
+### 1. `FormModal.tsx`: React `value`-without-`onChange` warning on delete confirm
+
+The hidden `id` input in the delete-confirmation form used `value={id}` with
+no `onChange` handler, which React treats as an unintentional read-only
+field and warns about. It also had `type="text | number"` — a TypeScript
+union type string that had leaked into the JSX as a literal, which isn't a
+valid HTML `type` attribute.
+
+**Fix:** `value={id}` → `defaultValue={id}` (the field is intentionally
+uncontrolled), `type="text | number"` → `type="text"`.
+
+### 2. Messages UI redesign
+
+Restyled to match a reference layout (Blackboard-style), scoped intentionally:
+kept the existing modal-based compose flow and individual (non-threaded)
+messages — only the visual layer changed, not the data model or interaction
+pattern.
+
+- `src/app/(dashboard)/list/messages/page.tsx` — list rebuilt as a card list
+  (avatar initials, sender/recipient name, date, one-line preview,
+  delete-on-hover) replacing the plain `<table>` rendering.
+- `src/components/Forms/MessageForm.tsx` — compose form restyled: "To:" row
+  with a search icon, tighter spacing, pill-shaped Send button.
+- `src/components/FormModal.tsx` — "New Message" trigger changed from the
+  generic icon-only circle button (shared by every entity) to a labeled pill
+  button. Scoped to `table === "message"` only, so every other entity's
+  create button is unaffected.
+
+### 3. Announcement management was a stub
+
+Same issue as Parent in session 1: `FormModal.tsx` mapped the `announcement`
+table to `notImplementedAction`, so the create button on `/list/announcements`
+just rendered "Announcement management isn't available yet." — no schema,
+no actions, no form component existed.
+
+**Fix**, following the existing Class/Exam pattern:
+
+- `src/lib/formValidationSchemas.ts` — added `announcementSchema` /
+  `AnnouncementSchema` (title, description, date, optional classId).
+- `src/lib/actions.ts` — added `createAnnouncement` / `updateAnnouncement` /
+  `deleteAnnouncement`, all gated with `requireRole("admin")`.
+- `src/components/Forms/AnnouncementForm.tsx` (new) — title, description,
+  date, optional class dropdown.
+- `src/components/FormModal.tsx` — registered the new form in the
+  create/update form map and the delete action map (replacing
+  `notImplementedAction` for `announcement`).
+- `src/components/FormContainer.tsx` — added the `announcement` case to
+  fetch the class list for the dropdown (`relatedData.classes`).
+
+No schema or migration change was needed — `Announcement` already existed in
+`schema.prisma`; only the application-layer plumbing around it was missing.
+
+### Files changed (8, incl. 1 new)
+
+1. `src/components/FormModal.tsx` — hidden-input fix, message trigger
+   restyle, announcement wiring
+2. `src/app/(dashboard)/list/messages/page.tsx` — card-list redesign
+3. `src/components/Forms/MessageForm.tsx` — compose form redesign
+4. `src/lib/formValidationSchemas.ts` — add `announcementSchema` /
+   `AnnouncementSchema`
+5. `src/lib/actions.ts` — add `createAnnouncement` / `updateAnnouncement` /
+   `deleteAnnouncement`
+6. `src/components/Forms/AnnouncementForm.tsx` — new
+7. `src/components/FormContainer.tsx` — add `announcement` relatedData case
+
+---
+
+## Known gaps / not yet done
+
+Carried over from the 2026-08-16 audit, still open:
+
+- Rate limiting only covers Subject actions (3/12 entities).
+- Several other tables still hit `notImplementedAction` in `FormModal.tsx`
+  (`lesson`, `assignment`, `result`, `attendance`, `event`) — same shape of
+  bug as Parent/Announcement, not yet fixed.
+- No automated tests (Vitest or otherwise).
+- `src/lib/actions.ts` is a single monolithic file — worth splitting per
+  entity at some point.
+- No Redis-backed rate limiting — current implementation won't work
+  correctly if this ever runs as more than one container/instance.
