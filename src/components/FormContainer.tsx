@@ -16,7 +16,8 @@ export type FormContainerProps = {
     | "result"
     | "attendance"
     | "event"
-    | "announcement";
+    | "announcement"
+    | "message";
   type: "create" | "update" | "delete";
   data?: any;
   id?: number | string;
@@ -100,6 +101,62 @@ const FormContainer =  async ({
                     });
                     relatedData = { lessons: examLessons};
                     break;
+                case "message": {
+                    // Everyone can message everyone else, so the recipient
+                    // picker pulls one page of each role (capped, same as
+                    // the other dropdowns) and just drops the current user.
+                    const [msgAdmins, msgTeachers, msgStudents, msgParents] =
+                        await Promise.all([
+                            prisma.admin.findMany({
+                                select: { id: true, username: true },
+                                take: 100,
+                            }),
+                            prisma.teacher.findMany({
+                                select: { id: true, name: true, surname: true },
+                                take: 500,
+                            }),
+                            prisma.student.findMany({
+                                select: { id: true, name: true, surname: true },
+                                take: 500,
+                            }),
+                            prisma.parent.findMany({
+                                select: { id: true, name: true, surname: true },
+                                take: 500,
+                            }),
+                        ]);
+
+                    const recipients = [
+                        ...msgAdmins.map((a: { id: string; username: string }) => ({
+                            id: a.id,
+                            role: "admin" as const,
+                            label: a.username,
+                        })),
+                        ...msgTeachers.map(
+                            (t: { id: string; name: string; surname: string }) => ({
+                                id: t.id,
+                                role: "teacher" as const,
+                                label: `${t.name} ${t.surname}`,
+                            })
+                        ),
+                        ...msgStudents.map(
+                            (s: { id: string; name: string; surname: string }) => ({
+                                id: s.id,
+                                role: "student" as const,
+                                label: `${s.name} ${s.surname}`,
+                            })
+                        ),
+                        ...msgParents.map(
+                            (p: { id: string; name: string; surname: string }) => ({
+                                id: p.id,
+                                role: "parent" as const,
+                                label: `${p.name} ${p.surname}`,
+                            })
+                        ),
+                    ].filter((recipient) => recipient.id !== currentUserId);
+
+                    relatedData = { recipients };
+                    break;
+                }
                 default: break;
 
         }

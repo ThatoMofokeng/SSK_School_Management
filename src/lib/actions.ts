@@ -4,13 +4,14 @@ import { revalidatePath } from "next/cache";
 import {
   ClassSchema,
   ExamSchema,
+  MessageSchema,
   StudentSchema,
   SubjectSchema,
   TeacherSchema,
 } from "./formValidationSchemas";
 import prisma from "./prisma";
 import { clerkClient } from "@clerk/nextjs/server";
-import { requireRole } from "./authz";
+import { requireRole, Role } from "./authz";
 import { logError } from "./logger";
 import { checkRateLimit, RateLimitError } from "./ratelimit";
 
@@ -544,6 +545,164 @@ export const deleteExam = async (
     });
 
     revalidatePath("/list/exams");
+    return { success: true, error: false };
+  } catch (err) {
+    logError("Server action failed", err, "actions");
+    return { success: false, error: true };
+  }
+};
+
+// ------------------------------------------------------------------
+// MESSAGE
+// Admin/Teacher/Student/Parent are separate Prisma models (no single
+// "User" table), so a recipient is identified by (role, id) rather than
+// a plain foreign key. senderName/receiverName are resolved once at
+// send time and stored on the row — see the comment on the Message
+// model in schema.prisma for why.
+// ------------------------------------------------------------------
+
+const roleToMessageRole: Record<
+  Role,
+  "ADMIN" | "TEACHER" | "STUDENT" | "PARENT"
+> = {
+  admin: "ADMIN",
+  teacher: "TEACHER",
+  student: "STUDENT",
+  parent: "PARENT",
+};
+
+async function getDisplayName(
+  role: Role,
+  id: string
+): Promise<string | null> {
+  switch (role) {
+    case "admin": {
+      const admin = await prisma.admin.findUnique({ where: { id } });
+      return admin?.username ?? null;
+    }
+    case "teacher": {
+      const teacher = await prisma.teacher.findUnique({ where: { id } });
+      return teacher ? `${teacher.name} ${teacher.surname}` : null;
+    }
+    case "student": {
+      const student = await prisma.student.findUnique({ where: { id } });
+      return student ? `${student.name} ${student.surname}` : null;
+    }
+    case "parent": {
+      const parent = await prisma.parent.findUnique({ where: { id } });
+      return parent ? `${parent.name} ${parent.surname}` : null;
+    }
+    default:
+      return null;
+  }
+}
+
+export const createMessage = async (
+  currentState: CurrentState,
+  data: MessageSchema
+) => {
+  try {
+    const { userId, role } = await requireRole(
+      "admin",
+      "teacher",
+      "student",
+      "parent"
+    );
+    await checkRateLimit(userId, "create-message");
+
+    const [senderName, receiverName] = await Promise.all([
+      getDisplayName(role, userId),
+      getDisplayName(data.receiverRole, data.receiverId),
+    ]);
+
+    if (!receiverName) {
+      // Recipient id doesn't match any account for that role.
+      return { success: false, error: true };
+    }
+
+    await (prisma as any).message.create({
+      data: {
+        subject: data.subject,
+        content: data.content,
+        senderId: userId,
+        senderRole: roleToMessageRole[role],
+        senderName: senderName ?? "Unknown",
+        receiverId: data.receiverId,
+        receiverRole: roleToMessageRole[data.receiverRole],
+        receiverName,
+      },
+    });
+
+    revalidatePath("/list/messages");
+    return { success: true, error: false };
+  } catch (err) {
+    if (err instanceof RateLimitError) {
+      return { success: false, error: true, message: err.message };
+    }
+    logError("Server action failed", err, "actions");
+    return { success: false, error: true };
+  }
+};
+
+export const deleteMessage = async (
+  currentState: CurrentState,
+  data: FormData
+) => {
+  const id = data.get("id") as string;
+  try {
+    const { userId, role } = await requireRole(
+      "admin",
+      "teacher",
+      "student",
+      "parent"
+    );
+
+    const message = await (prisma as any).message.findUnique({
+      where: { id: parseInt(id) },
+    });
+
+    // Only an admin, or someone on one side of the conversation, may
+    // delete a message.
+    if (
+      !message ||
+      (role !== "admin" &&
+        message.senderId !== userId &&
+        message.receiverId !== userId)
+    ) {
+      return { success: false, error: true };
+    }
+
+    await (prisma as any).message.delete({ where: { id: parseInt(id) } });
+
+    revalidatePath("/list/messages");
+    return { success: true, error: false };
+  } catch (err) {
+    logError("Server action failed", err, "actions");
+    return { success: false, error: true };
+  }
+};
+
+export const markMessageRead = async (
+  currentState: CurrentState,
+  data: FormData
+) => {
+  const id = data.get("id") as string;
+  try {
+    const { userId } = await requireRole(
+      "admin",
+      "teacher",
+      "student",
+      "parent"
+    );
+
+    // Filtering by receiverId in the same query IS the ownership check —
+    // a user can only ever mark their own received messages as read.
+    await (prisma as any).message.updateMany({
+      where: { id: parseInt(id), receiverId: userId },
+      data: { isRead: true },
+    });
+
+    revalidatePath("/list/messages");
     return { success: true, error: false };
   } catch (err) {
     logError("Server action failed", err, "actions");

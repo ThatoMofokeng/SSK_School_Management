@@ -188,9 +188,41 @@ model Announcement {
   class       Class?   @relation(fields: [classId], references: [id])
 }
 
+// Admin/Teacher/Student/Parent are separate tables (each keyed by the
+// Clerk user id), so a message's sender/receiver can't be a single
+// Prisma relation the way Announcement->Class is. senderRole/receiverRole
+// record which table the id belongs to, and senderName/receiverName are
+// a snapshot of the display name at send time (so the inbox doesn't need
+// four extra lookups per row, and still reads fine if the other person's
+// account is later renamed or removed).
+model Message {
+  id           Int         @id @default(autoincrement())
+  subject      String
+  content      String
+  senderId     String
+  senderRole   MessageRole
+  senderName   String
+  receiverId   String
+  receiverRole MessageRole
+  receiverName String
+  isRead       Boolean     @default(false)
+  createdAt    DateTime    @default(now())
+
+  @@index([senderId])
+  @@index([receiverId, isRead])
+  @@index([createdAt])
+}
+
 enum UserSex {
   MALE
   FEMALE
+}
+
+enum MessageRole {
+  ADMIN
+  TEACHER
+  STUDENT
+  PARENT
 }
 
 enum Day {

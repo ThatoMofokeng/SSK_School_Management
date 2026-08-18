@@ -86,3 +86,20 @@ export const examSchema = z.object({
 });
 
 export type ExamSchema = z.infer<typeof examSchema>;
+
+export const messageSchema = z.object({
+  receiverId: z.string().min(1, { message: "Please choose a recipient!" }),
+  receiverRole: z.enum(["admin", "teacher", "student", "parent"], {
+    message: "Please choose a recipient!",
+  }),
+  subject: z
+    .string()
+    .min(1, { message: "Subject is required!" })
+    .max(150, { message: "Subject is too long!" }),
+  content: z
+    .string()
+    .min(1, { message: "Message can't be empty!" })
+    .max(5000, { message: "Message is too long!" }),
+});
+
+export type MessageSchema = z.infer<typeof messageSchema>;

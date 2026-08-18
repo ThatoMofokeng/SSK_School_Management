@@ -48,11 +48,11 @@ const nextConfig = {
                         key: 'Content-Security-Policy',
                         value: [
                             "default-src 'self'",
-                            "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://*.clerk.accounts.dev https://challenges.cloudflare.com",
+                            "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://*.clerk.accounts.dev https://challenges.cloudflare.com https://upload-widget.cloudinary.com",
                             "style-src 'self' 'unsafe-inline'",
                             "img-src 'self' data: blob: https://images.pexels.com https://res.cloudinary.com https://img.clerk.com",
                             "font-src 'self' data:",
-                            "connect-src 'self' https://*.clerk.accounts.dev https://*.supabase.co https://challenges.cloudflare.com",
+                            "connect-src 'self' https://*.clerk.accounts.dev https://*.supabase.co https://challenges.cloudflare.com https://api.cloudinary.com",
                             "frame-src 'self' https://challenges.cloudflare.com https://*.clerk.accounts.dev",
                         ].join('; ')
                     }
