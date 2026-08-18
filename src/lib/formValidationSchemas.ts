@@ -77,6 +77,30 @@ export const studentSchema = z.object({
 
 export type StudentSchema = z.infer<typeof studentSchema>;
 
+export const parentSchema = z.object({
+  id: z.string().optional(),
+  username: z
+    .string()
+    .min(3, { message: "Username must be at least 3 characters long!" })
+    .max(20, { message: "Username must be at most 20 characters long!" }),
+  password: z
+    .string()
+    .min(8, { message: "Password must be at least 8 characters long!" })
+    .optional()
+    .or(z.literal("")),
+  name: z.string().min(1, { message: "First name is required!" }),
+  surname: z.string().min(1, { message: "Last name is required!" }),
+  email: z
+    .string()
+    .email({ message: "Invalid email address!" })
+    .optional()
+    .or(z.literal("")),
+  phone: z.string().min(1, { message: "Phone is required!" }),
+  address: z.string().min(1, { message: "Address is required!" }),
+});
+
+export type ParentSchema = z.infer<typeof parentSchema>;
+
 export const examSchema = z.object({
   id: z.coerce.number().optional(),
   title: z.string().min(1, { message: "Title name is required!" }),
@@ -86,3 +110,36 @@ export const examSchema = z.object({
 });
 
 export type ExamSchema = z.infer<typeof examSchema>;
+
+export const messageSchema = z.object({
+  receiverId: z.string().min(1, { message: "Please choose a recipient!" }),
+  receiverRole: z.enum(["admin", "teacher", "student", "parent"], {
+    message: "Please choose a recipient!",
+  }),
+  subject: z
+    .string()
+    .min(1, { message: "Subject is required!" })
+    .max(150, { message: "Subject is too long!" }),
+  content: z
+    .string()
+    .min(1, { message: "Message can't be empty!" })
+    .max(5000, { message: "Message is too long!" }),
+});
+
+export type MessageSchema = z.infer<typeof messageSchema>;
+
+export const announcementSchema = z.object({
+  id: z.coerce.number().optional(),
+  title: z
+    .string()
+    .min(1, { message: "Title is required!" })
+    .max(150, { message: "Title is too long!" }),
+  description: z
+    .string()
+    .min(1, { message: "Description is required!" })
+    .max(5000, { message: "Description is too long!" }),
+  date: z.string().min(1, { message: "Date is required!" }),
+  classId: z.coerce.number().optional().or(z.literal("")),
+});
+
+export type AnnouncementSchema = z.infer<typeof announcementSchema>;

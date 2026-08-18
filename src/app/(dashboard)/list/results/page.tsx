@@ -79,7 +79,7 @@ const renderRow = (item: ResultList) => (
     className="border-b border-gray-200 even:bg-slate-50 text-sm hover:bg-lamaPurpleLight"
   >
     <td className="flex items-center gap-4 p-4">{item.title}</td>
-    <td>{item.studentName + " " + item.studentName}</td>
+    <td>{item.studentName + " " + item.studentSurname}</td>
     <td className="hidden md:table-cell">{item.score}</td>
     <td className="hidden md:table-cell">
       {item.teacherName + " " + item.teacherSurname}
@@ -186,25 +186,47 @@ const renderRow = (item: ResultList) => (
     prisma.result.count({ where: query }),
   ]);
 
-  const data = dataRes.map((item) => {
-    const assessment = item.exam || item.assignment;
+  const data = dataRes
+    .map((item) => {
+      // Narrow directly on `item.exam` / `item.assignment` (the actual
+      // nullable relation fields) rather than a derived boolean from
+      // `"startTime" in assessment`. TypeScript can't reliably carry
+      // narrowing from an aliased `in`-check across a ternary here since
+      // Exam/Assignment are two distinct Prisma payload types, which is
+      // what produced the "does not exist on type 'never'" build error.
+      if (item.exam) {
+        const exam = item.exam;
+        return {
+          id: item.id,
+          title: exam.title,
+          studentName: item.student.name,
+          studentSurname: item.student.surname,
+          teacherName: exam.Lesson.teacher.name,
+          teacherSurname: exam.Lesson.teacher.surname,
+          score: item.score,
+          className: exam.Lesson.class.name,
+          startTime: exam.startTime,
+        };
+      }
 
-    if (!assessment) return null;
+      if (item.assignment) {
+        const assignment = item.assignment;
+        return {
+          id: item.id,
+          title: assignment.title,
+          studentName: item.student.name,
+          studentSurname: item.student.surname,
+          teacherName: assignment.Lesson.teacher.name,
+          teacherSurname: assignment.Lesson.teacher.surname,
+          score: item.score,
+          className: assignment.Lesson.class.name,
+          startTime: assignment.startDate,
+        };
+      }
 
-    const isExam = "startTime" in assessment;
-
-    return {
-      id: item.id,
-      title: assessment.title,
-      studentName: item.student.name,
-      studentSurname: item.student.surname,
-      teacherName: assessment.Lesson.teacher.name,
-      teacherSurname: assessment.Lesson.teacher.surname,
-      score: item.score,
-      className: assessment.Lesson.class.name,
-      startTime: isExam ? assessment.startTime : assessment.startDate,
-    };
-  });
+      return null;
+    })
+    .filter((item): item is NonNullable<typeof item> => item !== null);
 
   return (
     <div className="bg-white p-4 rounded-md flex-1 m-4 mt-0">

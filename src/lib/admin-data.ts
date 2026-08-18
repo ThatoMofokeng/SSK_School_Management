@@ -1,4 +1,5 @@
 import prisma from "@/lib/prisma";
+import { logError } from "@/lib/logger";
 import { auth } from "@clerk/nextjs/server";
 
 export interface AdminDashboardData {
@@ -102,7 +103,7 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
       attendanceData,
     };
   } catch (error) {
-    console.error("Error fetching admin dashboard data:", error);
+    logError("Error fetching admin dashboard data", error, "admin-data");
     // Return default values to prevent crashes
     return {
       userCounts: { admin: 0, teacher: 0, student: 0, parent: 0 },

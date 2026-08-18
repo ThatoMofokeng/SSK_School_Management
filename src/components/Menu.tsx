@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { currentUser } from "@clerk/nextjs/server";
+import LogoutButton from "./LogoutButton";
 
 
 
@@ -138,6 +139,13 @@ const Menu = async () => {
 
             //for role visible we return the necessary menu
             if (item.visible.includes(role)) {
+              // The Logout item needs real signOut() behavior, which only
+              // works in a client component — render that instead of the
+              // dead <Link href="/logout"> that used to sit here.
+              if (item.href === "/logout") {
+                return <LogoutButton key={item.label} />;
+              }
+
               return (
                 <Link
                   href={item.href}

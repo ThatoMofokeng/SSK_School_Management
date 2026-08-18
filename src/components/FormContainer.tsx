@@ -16,7 +16,8 @@ export type FormContainerProps = {
     | "result"
     | "attendance"
     | "event"
-    | "announcement";
+    | "announcement"
+    | "message";
   type: "create" | "update" | "delete";
   data?: any;
   id?: number | string;
@@ -45,35 +46,44 @@ const FormContainer =  async ({
         switch (table) {
             case "subject":
                 const subjectTeachers = await prisma.teacher.findMany({
-                    select: {id: true, name: true, surname: true},
+                    select: { id: true, name: true, surname: true },
+                    take: 500,
                 });
                 relatedData = { teachers: subjectTeachers};
                 break;
 
                 case "class":
                     const classGrades = await prisma.grade.findMany({
-                        select: {id: true, level: true},
+                        select: { id: true, level: true },
+                        take: 100,
                     });
 
                     const classTeachers = await prisma.teacher.findMany({
-                        select: {id: true, name: true, surname: true},
+                        select: { id: true, name: true, surname: true },
+                        take: 500,
                     });
                     relatedData = { teachers: classTeachers, grades: classGrades};
                     break;
-                case "teacher":
+                case "teacher": {
                     const teacherSubjects = await prisma.subject.findMany({
-                        select: { id:  true, name : true},
+                        select: { id: true, name: true },
+                        take: 500,
                     });
-                    relatedData = {subjects: teacherSubjects}
-                case "student":
+                    relatedData = { subjects: teacherSubjects };
+                    break;
+                }
+                case "student": {
                     const studentGrades = await prisma.grade.findMany({
-                            select: { id:  true, level : true},
-                        });
-                        const studentClasses = await prisma.grade.findMany({
-                            include:{_count: {select: { students: true}}}
-                        })
-                        relatedData = {classes: studentClasses, grades: studentGrades};
-                        break;
+                        select: { id: true, level: true },
+                        take: 100,
+                    });
+                    const studentClasses = await prisma.class.findMany({
+                        include: { _count: { select: { students: true } } },
+                        take: 500,
+                    });
+                    relatedData = { classes: studentClasses, grades: studentGrades };
+                    break;
+                }
                 case "exam":
                     const {userId, sessionClaims} = await auth();
                     const role = (
@@ -84,12 +94,77 @@ const FormContainer =  async ({
 
                     const examLessons = await prisma.lesson.findMany({
                         where: {
-                            ...(role === "teacher" ? {teacherId: userId!} : {}),
+                            ...(role === "teacher" ? { teacherId: userId! } : {}),
                         },
-                        select : {id: true, name: true},
-                    })
+                        select: { id: true, name: true },
+                        take: 500,
+                    });
                     relatedData = { lessons: examLessons};
                     break;
+                case "message": {
+                    // Everyone can message everyone else, so the recipient
+                    // picker pulls one page of each role (capped, same as
+                    // the other dropdowns) and just drops the current user.
+                    const [msgAdmins, msgTeachers, msgStudents, msgParents] =
+                        await Promise.all([
+                            prisma.admin.findMany({
+                                select: { id: true, username: true },
+                                take: 100,
+                            }),
+                            prisma.teacher.findMany({
+                                select: { id: true, name: true, surname: true },
+                                take: 500,
+                            }),
+                            prisma.student.findMany({
+                                select: { id: true, name: true, surname: true },
+                                take: 500,
+                            }),
+                            prisma.parent.findMany({
+                                select: { id: true, name: true, surname: true },
+                                take: 500,
+                            }),
+                        ]);
+
+                    const recipients = [
+                        ...msgAdmins.map((a: { id: string; username: string }) => ({
+                            id: a.id,
+                            role: "admin" as const,
+                            label: a.username,
+                        })),
+                        ...msgTeachers.map(
+                            (t: { id: string; name: string; surname: string }) => ({
+                                id: t.id,
+                                role: "teacher" as const,
+                                label: `${t.name} ${t.surname}`,
+                            })
+                        ),
+                        ...msgStudents.map(
+                            (s: { id: string; name: string; surname: string }) => ({
+                                id: s.id,
+                                role: "student" as const,
+                                label: `${s.name} ${s.surname}`,
+                            })
+                        ),
+                        ...msgParents.map(
+                            (p: { id: string; name: string; surname: string }) => ({
+                                id: p.id,
+                                role: "parent" as const,
+                                label: `${p.name} ${p.surname}`,
+                            })
+                        ),
+                    ].filter((recipient) => recipient.id !== currentUserId);
+
+                    relatedData = { recipients };
+                    break;
+                }
+                case "announcement": {
+                    const announcementClasses = await prisma.class.findMany({
+                        select: { id: true, name: true },
+                        take: 500,
+                    });
+                    relatedData = { classes: announcementClasses };
+                    break;
+                }
                 default: break;
 
         }

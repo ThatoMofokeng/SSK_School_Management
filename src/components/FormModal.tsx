@@ -1,8 +1,10 @@
 "use client";
 
 import {
+  deleteAnnouncement,
   deleteClass,
   deleteExam,
+  deleteMessage,
   deleteStudent,
   deleteSubject,
   deleteTeacher,
@@ -15,20 +17,36 @@ import { Dispatch, SetStateAction, useActionState, useEffect, useState } from "r
 import { toast } from "react-toastify";
 import { FormContainerProps } from "./FormContainer";
 
-const deleteActionMap = {
+// Safety no-op for tables that don't have a real delete action wired up
+// yet. Previously these all pointed at `deleteSubject`, which meant
+// clicking delete on a parent/announcement/etc. would actually delete an
+// unrelated Subject row and report success. This returns a clean error
+// instead until the real actions are built.
+const notImplementedAction = async (
+  _currentState: { success: boolean; error: boolean },
+  _formData: FormData
+) => ({ success: false, error: true });
+
+const deleteActionMap: {
+  [key: string]: (
+    currentState: { success: boolean; error: boolean },
+    formData: FormData
+  ) => Promise<{ success: boolean; error: boolean }>;
+} = {
   subject: deleteSubject,
   class: deleteClass,
   teacher: deleteTeacher,
   student: deleteStudent,
   exam: deleteExam,
-// TODO: OTHER DELETE ACTIONS
-  parent: deleteSubject,
-  lesson: deleteSubject,
-  assignment: deleteSubject,
-  result: deleteSubject,
-  attendance: deleteSubject,
-  event: deleteSubject,
-  announcement: deleteSubject,
+  message: deleteMessage,
+  announcement: deleteAnnouncement,
+  // TODO: OTHER DELETE ACTIONS — replace with real actions once built
+  parent: notImplementedAction,
+  lesson: notImplementedAction,
+  assignment: notImplementedAction,
+  result: notImplementedAction,
+  attendance: notImplementedAction,
+  event: notImplementedAction,
 };
 
 // USE LAZY LOADING
@@ -49,6 +67,12 @@ const ClassForm = dynamic(() => import("./Forms/ClassForm"), {
   loading: () => <h1>Loading...</h1>,
 });
 const ExamForm = dynamic(() => import("./Forms/ExamForm"), {
+  loading: () => <h1>Loading...</h1>,
+});
+const MessageForm = dynamic(() => import("./Forms/MessageForm"), {
+  loading: () => <h1>Loading...</h1>,
+});
+const AnnouncementForm = dynamic(() => import("./Forms/AnnouncementForm"), {
   loading: () => <h1>Loading...</h1>,
 });
 // TODO: OTHER FORMS
@@ -102,6 +126,22 @@ const forms: {
     />
     // TODO OTHER LIST ITEMS
   ),
+  message: (setOpen, type, data, relatedData) => (
+    <MessageForm
+      type={type}
+      data={data}
+      setOpen={setOpen}
+      relatedData={relatedData}
+    />
+  ),
+  announcement: (setOpen, type, data, relatedData) => (
+    <AnnouncementForm
+      type={type}
+      data={data}
+      setOpen={setOpen}
+      relatedData={relatedData}
+    />
+  ),
 };
 
 const FormModal = ({
@@ -134,12 +174,14 @@ const FormModal = ({
         toast(`${table} has been deleted!`);
         setOpen(false);
         router.refresh();
+      } else if (state.error) {
+        toast.error(`Couldn't delete this ${table}. It may not be available yet.`);
       }
-    }, [state, router]);
+    }, [state, router, table]);
 
     return type === "delete" && id ? (
       <form action={formAction} className="p-4 flex flex-col gap-4">
-        <input type="text | number" name="id" value={id} hidden />
+        <input type="text" name="id" defaultValue={id} hidden />
         <span className="text-center font-medium">
           All data will be lost. Are you sure you want to delete this {table}?
         </span>
@@ -148,7 +190,14 @@ const FormModal = ({
         </button>
       </form>
     ) : type === "create" || type === "update" ? (
-      forms[table](setOpen, type, data, relatedData)
+      forms[table] ? (
+        forms[table](setOpen, type, data, relatedData)
+      ) : (
+        <div className="p-6 text-center text-sm text-gray-500">
+          {table.charAt(0).toUpperCase() + table.slice(1)} management isn&apos;t
+          available yet.
+        </div>
+      )
     ) : (
       "Form not found!"
     );
@@ -156,12 +205,22 @@ const FormModal = ({
 
   return (
     <>
-      <button
-        className={`${size} flex items-center justify-center rounded-full ${bgColor}`}
-        onClick={() => setOpen(true)}
-      >
-        <Image src={`/${type}.png`} alt="" width={16} height={16} />
-      </button>
+      {table === "message" && type === "create" ? (
+        <button
+          className="flex items-center gap-2 px-4 py-2 rounded-full bg-lamaSky text-sm font-medium text-gray-700 hover:opacity-90"
+          onClick={() => setOpen(true)}
+        >
+          <Image src="/mail.png" alt="" width={16} height={16} />
+          New Message
+        </button>
+      ) : (
+        <button
+          className={`${size} flex items-center justify-center rounded-full ${bgColor}`}
+          onClick={() => setOpen(true)}
+        >
+          <Image src={`/${type}.png`} alt="" width={16} height={16} />
+        </button>
+      )}
       {open && (
         <div className="w-screen h-screen absolute left-0 top-0 bg-black bg-opacity-60 z-50 flex items-center justify-center">
           <div className="bg-white p-4 rounded-md relative w-[90%] md:w-[70%] lg:w-[60%] xl:w-[50%] 2xl:w-[40%]">
