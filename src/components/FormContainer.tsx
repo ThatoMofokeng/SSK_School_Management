@@ -84,23 +84,17 @@ const FormContainer =  async ({
                     relatedData = { classes: studentClasses, grades: studentGrades };
                     break;
                 }
-                case "exam":
-                    const {userId, sessionClaims} = await auth();
-                    const role = (
-                        sessionClaims?.metadata as {
-                            role?: "admin" | "teacher" | "student" | "parent";
-                        }
-                    )?.role;
-
+                case "exam": {
                     const examLessons = await prisma.lesson.findMany({
                         where: {
-                            ...(role === "teacher" ? { teacherId: userId! } : {}),
+                            ...(role === "teacher" ? { teacherId: currentUserId! } : {}),
                         },
                         select: { id: true, name: true },
                         take: 500,
                     });
                     relatedData = { lessons: examLessons};
                     break;
+                }
                 case "message": {
                     // Everyone can message everyone else, so the recipient
                     // picker pulls one page of each role (capped, same as
@@ -155,6 +149,28 @@ const FormContainer =  async ({
                     ].filter((recipient) => recipient.id !== currentUserId);
 
                     relatedData = { recipients };
+                    break;
+                }
+                case "attendance": {
+                    const attendanceLessons = await prisma.lesson.findMany({
+                        where: {
+                            ...(role === "teacher" ? { teacherId: currentUserId! } : {}),
+                        },
+                        select: { id: true, name: true },
+                        take: 500,
+                    });
+
+                    const attendanceStudents = await prisma.student.findMany({
+                        where: {
+                            ...(role === "teacher"
+                                ? { class: { lessons: { some: { teacherId: currentUserId! } } } }
+                                : {}),
+                        },
+                        select: { id: true, name: true, surname: true },
+                        take: 500,
+                    });
+
+                    relatedData = { lessons: attendanceLessons, students: attendanceStudents };
                     break;
                 }
                 case "announcement": {

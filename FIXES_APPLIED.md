@@ -1,8 +1,8 @@
-# SSK School Management - Logo and Sign-in Fixes
+# Siyakha Student Management System - Logo and Sign-in Fixes
 
 ## Changes
 
-- Replaced the application logo with the new SSK emblem at `public/SSKLogo02.png`.
+- Replaced the application logo with the new Siyakha emblem at `public/SSKLogo02.png`.
 - Converted the logo background to transparent for cleaner use in the UI.
 - Updated the dashboard logo to use the new PNG and increased its display size.
 - Updated the Next.js favicon, shortcut icon, and Apple icon to use the new logo.

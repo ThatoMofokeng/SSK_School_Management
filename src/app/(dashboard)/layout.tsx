@@ -25,8 +25,8 @@ export default function DashboardLayout({
           href="/"
           className="flex items-center justify-center lg:justify-start gap-2"
         >
-          <Image src="/SSKLogo02.png" alt="SSK School Management logo" width={44} height={44} priority className="object-contain" />
-          <span className="hidden lg:block font-bold">SSK Learning</span>
+          <Image src="/SSKLogo02.png" alt="Siyakha Student Management System logo" width={44} height={44} priority className="object-contain" />
+          <span className="hidden lg:block font-bold">Siyakha</span>
         </Link>
         <Menu />
       </div>

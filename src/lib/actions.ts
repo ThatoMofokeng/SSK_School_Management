@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import {
   AnnouncementSchema,
+  AttendanceSchema,
   ClassSchema,
   ExamSchema,
   MessageSchema,
@@ -855,6 +856,122 @@ export const deleteAnnouncement = async (
     });
 
     revalidatePath("/list/announcements");
+    return { success: true, error: false };
+  } catch (err) {
+    logError("Server action failed", err, "actions");
+    return { success: false, error: true };
+  }
+};
+// ------------------------------------------------------------------
+// ATTENDANCE
+// Same ownership model as exams: teachers may only mark/edit/delete
+// attendance for lessons they teach; admins may act on any record.
+// ------------------------------------------------------------------
+
+export const createAttendance = async (
+  currentState: CurrentState,
+  data: AttendanceSchema
+) => {
+  try {
+    const { userId, role } = await requireRole("admin", "teacher");
+
+    if (role === "teacher") {
+      const teacherLesson = await prisma.lesson.findFirst({
+        where: {
+          teacherId: userId,
+          id: data.lessonId,
+        },
+      });
+
+      if (!teacherLesson) {
+        return { success: false, error: true };
+      }
+    }
+
+    await prisma.attandance.create({
+      data: {
+        date: new Date(data.date),
+        present: data.present,
+        studentId: data.studentId,
+        lessonId: data.lessonId,
+      },
+    });
+
+    revalidatePath("/list/attendance");
+    return { success: true, error: false };
+  } catch (err) {
+    logError("Server action failed", err, "actions");
+    return { success: false, error: true };
+  }
+};
+
+export const updateAttendance = async (
+  currentState: CurrentState,
+  data: AttendanceSchema
+) => {
+  try {
+    const { userId, role } = await requireRole("admin", "teacher");
+
+    if (role === "teacher") {
+      const teacherLesson = await prisma.lesson.findFirst({
+        where: {
+          teacherId: userId,
+          id: data.lessonId,
+        },
+      });
+
+      if (!teacherLesson) {
+        return { success: false, error: true };
+      }
+    }
+
+    await prisma.attandance.update({
+      where: {
+        id: data.id,
+      },
+      data: {
+        date: new Date(data.date),
+        present: data.present,
+        studentId: data.studentId,
+        lessonId: data.lessonId,
+      },
+    });
+
+    revalidatePath("/list/attendance");
+    return { success: true, error: false };
+  } catch (err) {
+    logError("Server action failed", err, "actions");
+    return { success: false, error: true };
+  }
+};
+
+export const deleteAttendance = async (
+  currentState: CurrentState,
+  data: FormData
+) => {
+  const id = data.get("id") as string;
+
+  try {
+    const { userId, role } = await requireRole("admin", "teacher");
+
+    if (role === "teacher") {
+      const attendance = await prisma.attandance.findUnique({
+        where: { id: parseInt(id) },
+        include: { lesson: true },
+      });
+
+      if (!attendance || attendance.lesson.teacherId !== userId) {
+        return { success: false, error: true };
+      }
+    }
+
+    await prisma.attandance.delete({
+      where: {
+        id: parseInt(id),
+      },
+    });
+
+    revalidatePath("/list/attendance");
     return { success: true, error: false };
   } catch (err) {
     logError("Server action failed", err, "actions");

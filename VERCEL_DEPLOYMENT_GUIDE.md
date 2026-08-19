@@ -1,4 +1,4 @@
-# 🚀 Vercel Deployment Guide - SSK School Management
+# 🚀 Vercel Deployment Guide - Siyakha Student Management System
 
 **Complete step-by-step guide to deploy your school management system to Vercel**
 
@@ -599,7 +599,7 @@ Print this and check off as you go:
 
 **🎉 Congratulations!**
 
-Your SSK School Management System is now live on Vercel!
+Your Siyakha Student Management System is now live on Vercel!
 
 **Your production URL:**
 `https://ssk-school-management-{username}.vercel.app`
