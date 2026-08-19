@@ -39,7 +39,7 @@ export default function SettingsPage() {
   const role = ((user.publicMetadata?.role as Role | undefined) ?? "User");
 
   const fullName =
-    user.fullName || user.firstName || user.username || "SSK User";
+    user.fullName || user.firstName || user.username || "Siyakha User";
 
   const email = user.primaryEmailAddress?.emailAddress || "No email available";
 
@@ -91,7 +91,7 @@ export default function SettingsPage() {
             Settings
           </h1>
           <p className="mt-1 text-sm text-slate-500">
-            Manage your SSK School Management account and preferences.
+            Manage your Siyakha Student Management System account and preferences.
           </p>
         </div>
 
@@ -200,7 +200,7 @@ export default function SettingsPage() {
           {/* Notifications */}
           <SettingsSection
             title="Notifications"
-            description="Control how SSK communicates with you."
+            description="Control how Siyakha communicates with you."
             icon={<Bell className="h-5 w-5" aria-hidden="true" />}
           >
             <SettingsItem
@@ -242,7 +242,7 @@ export default function SettingsPage() {
 
         {/* Footer */}
         <div className="py-8 text-center text-xs text-slate-400">
-          SSK School Management System
+          Siyakha Student Management System
         </div>
       </div>
     </main>

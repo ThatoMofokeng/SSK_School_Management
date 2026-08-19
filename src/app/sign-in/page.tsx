@@ -28,7 +28,7 @@ const LoginPage = () => {
   if (!isLoaded) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-lamaSkyLight">
-        <div className="text-sm text-gray-500">Loading SSK School Management...</div>
+        <div className="text-sm text-gray-500">Loading Siyakha Student Management System...</div>
       </div>
     );
   }
@@ -39,7 +39,7 @@ const LoginPage = () => {
         <div className="w-full max-w-md bg-white p-8 sm:p-10 rounded-2xl shadow-xl text-center">
           <Image
             src="/SSKLogo02.png"
-            alt="SSK School Management"
+            alt="Siyakha Student Management System"
             width={88}
             height={88}
             className="mx-auto mb-5 object-contain"
@@ -65,7 +65,7 @@ const LoginPage = () => {
             <div className="mx-auto mb-4 flex h-24 w-24 items-center justify-center rounded-2xl bg-white shadow-md ring-1 ring-gray-100">
               <Image
                 src="/SSKLogo02.png"
-                alt="SSK School Management logo"
+                alt="Siyakha Student Management System logo"
                 width={84}
                 height={84}
                 priority
@@ -73,7 +73,7 @@ const LoginPage = () => {
               />
             </div>
             <h1 className="text-2xl font-bold tracking-tight text-gray-900">
-              SSK School Management
+              Siyakha Student Management System
             </h1>
             <p className="mt-1 text-sm text-gray-500">
               Secure school management portal
@@ -120,7 +120,7 @@ const LoginPage = () => {
           </SignIn.Action>
 
           <p className="text-center text-xs text-gray-400">
-            SSK School Management System
+            Siyakha Student Management System
           </p>
         </SignIn.Step>
       </SignIn.Root>

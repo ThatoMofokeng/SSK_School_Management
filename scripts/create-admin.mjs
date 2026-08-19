@@ -1,6 +1,6 @@
 // scripts/create-admin.mjs
 //
-// Bootstraps the FIRST admin account for SSK School Management.
+// Bootstraps the FIRST admin account for Siyakha Student Management System.
 //
 // Why this exists: every user in this app (admin, teacher, student,
 // parent) is created via clerkClient().users.createUser() from
@@ -56,7 +56,7 @@ const clerk = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY });
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log(`Creating Clerk user for ${email}...`);
+  console.log(`Creating Clerk user for ${email}... - create-admin.mjs:59`);
 
   const user = await clerk.users.createUser({
     username,
@@ -65,7 +65,7 @@ async function main() {
     publicMetadata: { role: "admin" },
   });
 
-  console.log(`Clerk user created: ${user.id}`);
+  console.log(`Clerk user created: ${user.id} - create-admin.mjs:68`);
 
   await prisma.admin.upsert({
     where: { id: user.id },
@@ -73,7 +73,7 @@ async function main() {
     create: { id: user.id, username },
   });
 
-  console.log(`Admin row upserted in the database for id ${user.id}`);
+  console.log(`Admin row upserted in the database for id ${user.id} - create-admin.mjs:76`);
   console.log(
     `\nDone. Sign in at /sign-in with:\n  identifier: ${username} (or ${email})\n  password: <what you passed in>`
   );
@@ -81,7 +81,7 @@ async function main() {
 
 main()
   .catch((err) => {
-    console.error("Failed to create admin:", err);
+    console.error("Failed to create admin: - create-admin.mjs:84", err);
     process.exit(1);
   })
   .finally(() => prisma.$disconnect());

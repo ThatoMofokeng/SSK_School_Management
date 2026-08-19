@@ -1,4 +1,4 @@
-# Fixes Log — SSK School Management System
+# Fixes Log — Siyakha Student Management System
 
 Running log of security and bug-fix work on this repo, in chronological order.
 Each entry has: what was wrong, why (root cause), what changed, and which files.

@@ -12,8 +12,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "SSK LC School Management Dashboard",
-  description: "School Management System",
+  title: "Siyakha Student Management System",
+  description: "Siyakha Student Management System",
   icons: {
     icon: "/SSKLogo02.png",
     shortcut: "/SSKLogo02.png",
