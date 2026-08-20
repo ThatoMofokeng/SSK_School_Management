@@ -6,7 +6,9 @@ import prisma from "@/lib/prisma";
 import { ITEMS_PER_PAGE } from "@/lib/setting";
 import { Announcement, Class, Prisma } from "@prisma/client";
 import Image from "next/image";
+import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
+import RefreshNavbarOnMount from "@/components/RefreshNavbarOnMount";
 
 
 type AnnouncementList = Announcement & { class: Class };
@@ -51,10 +53,41 @@ const AnnouncementListPage = async ({
       key={item.id}
       className="border-b border-gray-200 even:bg-slate-50 text-sm hover:bg-lamaPurpleLight"
     >
-      <td className="flex items-center gap-4 p-4">{item.title}</td>
-      <td>{item.class?.name || "-"}</td>
-      <td className="hidden md:table-cell">
-        {new Intl.DateTimeFormat("en-US").format(item.date)}
+      <td className="p-0">
+        <Link
+          href={`/list/announcements/${item.id}`}
+          className="flex items-center gap-4 p-4"
+        >
+          <Image
+            src="/announcement.png"
+            alt=""
+            width={20}
+            height={20}
+            className="shrink-0 mt-0.5"
+          />
+          <div className="flex flex-col">
+            <span className="font-semibold">{item.title}</span>
+            <span className="text-xs text-gray-500 line-clamp-1">
+              {item.description}
+            </span>
+          </div>
+        </Link>
+      </td>
+      <td className="p-0">
+        <Link
+          href={`/list/announcements/${item.id}`}
+          className="block p-4"
+        >
+          {item.class?.name || "-"}
+        </Link>
+      </td>
+      <td className="hidden md:table-cell p-0">
+        <Link
+          href={`/list/announcements/${item.id}`}
+          className="block p-4"
+        >
+          {new Intl.DateTimeFormat("en-US").format(item.date)}
+        </Link>
       </td>
       <td>
         <div className="flex items-center gap-2">
@@ -119,6 +152,7 @@ const AnnouncementListPage = async ({
 
   return (
     <div className="bg-white p-4 rounded-md flex-1 m-4 mt-0">
+      <RefreshNavbarOnMount />
       {/* TOP */}
       <div className="flex items-center justify-between">
         <h1 className="hidden md:block text-lg font-semibold">

@@ -3,9 +3,11 @@
 import { revalidatePath } from "next/cache";
 import {
   AnnouncementSchema,
+  AssignmentSchema,
   AttendanceSchema,
   ClassSchema,
   ExamSchema,
+  LessonSchema,
   MessageSchema,
   ParentSchema,
   StudentSchema,
@@ -545,8 +547,8 @@ export const createExam = async (
     await prisma.exam.create({
       data: {
         title: data.title,
-        startTime: data.startTime,
-        endTime: data.endTime,
+        startTime: new Date(data.startTime),
+        endTime: new Date(data.endTime),
         lessonId: data.lessonId,
       },
     });
@@ -585,8 +587,8 @@ export const updateExam = async (
       },
       data: {
         title: data.title,
-        startTime: data.startTime,
-        endTime: data.endTime,
+        startTime: new Date(data.startTime),
+        endTime: new Date(data.endTime),
         lessonId: data.lessonId,
       },
     });
@@ -629,6 +631,215 @@ export const deleteExam = async (
     });
 
     revalidatePath("/list/exams");
+    return { success: true, error: false };
+  } catch (err) {
+    logError("Server action failed", err, "actions");
+    return { success: false, error: true };
+  }
+};
+
+// ------------------------------------------------------------------
+// ASSIGNMENT
+// ------------------------------------------------------------------
+
+export const createAssignment = async (
+  currentState: CurrentState,
+  data: AssignmentSchema
+) => {
+  try {
+    const { userId, role } = await requireRole("admin", "teacher");
+
+    if (role === "teacher") {
+      const teacherLesson = await prisma.lesson.findFirst({
+        where: {
+          teacherId: userId,
+          id: data.lessonId,
+        },
+      });
+
+      if (!teacherLesson) {
+        return { success: false, error: true };
+      }
+    }
+
+    await prisma.assignment.create({
+      data: {
+        title: data.title,
+        startDate: new Date(data.startDate),
+        dueDate: new Date(data.dueDate),
+        lessonId: data.lessonId,
+      },
+    });
+
+    revalidatePath("/list/assignments");
+    return { success: true, error: false };
+  } catch (err) {
+    logError("Server action failed", err, "actions");
+    return { success: false, error: true };
+  }
+};
+
+export const updateAssignment = async (
+  currentState: CurrentState,
+  data: AssignmentSchema
+) => {
+  if (!data.id) {
+    return { success: false, error: true };
+  }
+  try {
+    const { userId, role } = await requireRole("admin", "teacher");
+
+    if (role === "teacher") {
+      const teacherLesson = await prisma.lesson.findFirst({
+        where: {
+          teacherId: userId,
+          id: data.lessonId,
+        },
+      });
+
+      if (!teacherLesson) {
+        return { success: false, error: true };
+      }
+    }
+
+    await prisma.assignment.update({
+      where: {
+        id: data.id,
+      },
+      data: {
+        title: data.title,
+        startDate: new Date(data.startDate),
+        dueDate: new Date(data.dueDate),
+        lessonId: data.lessonId,
+      },
+    });
+
+    revalidatePath("/list/assignments");
+    return { success: true, error: false };
+  } catch (err) {
+    logError("Server action failed", err, "actions");
+    return { success: false, error: true };
+  }
+};
+
+export const deleteAssignment = async (
+  currentState: CurrentState,
+  data: FormData
+) => {
+  const id = data.get("id") as string;
+
+  try {
+    const { userId, role } = await requireRole("admin", "teacher");
+
+    if (role === "teacher") {
+      const assignment = await prisma.assignment.findUnique({
+        where: { id: parseInt(id) },
+        include: { Lesson: true },
+      });
+
+      if (!assignment || assignment.Lesson.teacherId !== userId) {
+        return { success: false, error: true };
+      }
+    }
+
+    await prisma.assignment.delete({
+      where: {
+        id: parseInt(id),
+      },
+    });
+
+    revalidatePath("/list/assignments");
+    return { success: true, error: false };
+  } catch (err) {
+    logError("Server action failed", err, "actions");
+    return { success: false, error: true };
+  }
+};
+
+// ------------------------------------------------------------------
+// LESSON
+// Lessons define the teacher/class/subject a slot belongs to (rather
+// than attaching to an existing one, like exams/assignments/attendance
+// do), so managing them is admin-only - matching the role check already
+// on the lessons list page.
+// ------------------------------------------------------------------
+
+export const createLesson = async (
+  currentState: CurrentState,
+  data: LessonSchema
+) => {
+  try {
+    await requireRole("admin");
+
+    await prisma.lesson.create({
+      data: {
+        name: data.name,
+        day: data.day,
+        startTime: new Date(data.startTime),
+        endTime: new Date(data.endTime),
+        subjectId: data.subjectId,
+        classId: data.classId,
+        teacherId: data.teacherId,
+      },
+    });
+
+    revalidatePath("/list/lessons");
+    return { success: true, error: false };
+  } catch (err) {
+    logError("Server action failed", err, "actions");
+    return { success: false, error: true };
+  }
+};
+
+export const updateLesson = async (
+  currentState: CurrentState,
+  data: LessonSchema
+) => {
+  if (!data.id) {
+    return { success: false, error: true };
+  }
+  try {
+    await requireRole("admin");
+
+    await prisma.lesson.update({
+      where: {
+        id: data.id,
+      },
+      data: {
+        name: data.name,
+        day: data.day,
+        startTime: new Date(data.startTime),
+        endTime: new Date(data.endTime),
+        subjectId: data.subjectId,
+        classId: data.classId,
+        teacherId: data.teacherId,
+      },
+    });
+
+    revalidatePath("/list/lessons");
+    return { success: true, error: false };
+  } catch (err) {
+    logError("Server action failed", err, "actions");
+    return { success: false, error: true };
+  }
+};
+
+export const deleteLesson = async (
+  currentState: CurrentState,
+  data: FormData
+) => {
+  const id = data.get("id") as string;
+
+  try {
+    await requireRole("admin");
+
+    await prisma.lesson.delete({
+      where: {
+        id: parseInt(id),
+      },
+    });
+
+    revalidatePath("/list/lessons");
     return { success: true, error: false };
   } catch (err) {
     logError("Server action failed", err, "actions");

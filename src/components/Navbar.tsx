@@ -1,13 +1,45 @@
-
-
 import { UserButton } from "@clerk/nextjs";
-import { currentUser } from "@clerk/nextjs/server";
+import { currentUser, auth } from "@clerk/nextjs/server";
 import Image from "next/image";
+import Link from "next/link";
+import { cookies } from "next/headers";
+import prisma from "@/lib/prisma";
 
 const Navbar = async () => {
 
     const user = await currentUser();
+    const { userId, sessionClaims } = await auth();
+    const role = (sessionClaims?.metadata as { role?: string })?.role;
+    const currentUserId = userId;
 
+    // How many announcements this user hasn't opened the list since.
+    // "Seen" is tracked via a cookie set by MarkAnnouncementsSeen when
+    // the announcements page loads, so the badge clears once they've
+    // actually looked at it, and climbs again as new ones come in.
+    const cookieStore = await cookies();
+    const lastSeenRaw = cookieStore.get("announcementsLastSeenAt")?.value;
+    const lastSeenAt = lastSeenRaw ? new Date(lastSeenRaw) : new Date(0);
+
+    const roleConditions = {
+        teacher: { lessons: { some: { teacherId: currentUserId! } } },
+        student: { students: { some: { id: currentUserId! } } },
+        parent: { students: { some: { parentId: currentUserId! } } },
+    };
+
+    const unseenAnnouncementsCount = currentUserId
+        ? await prisma.announcement.count({
+              where: {
+                  createdAt: { gt: lastSeenAt },
+                  OR: [
+                      { classId: null },
+                      {
+                          class:
+                              roleConditions[role as keyof typeof roleConditions] || {},
+                      },
+                  ],
+              },
+          })
+        : 0;
 
     return (
         <div className="flex items-center justify-between p-4">
@@ -19,14 +51,18 @@ const Navbar = async () => {
             {/* Icons And User */}
             {/* Message */}
             <div className="flex items-center gap-6 justify-end w-full">
-                <div className="bg-white rounded-full w-7 h-7 flex items-center justify-center cursor-pointer">
+                <Link href="/list/messages" className="bg-white rounded-full w-7 h-7 flex items-center justify-center cursor-pointer">
                     <Image src="/message.png" alt="" width={20} height={20} />
-                </div>
+                </Link>
                 {/* Announcement */}
-                <div className="bg-white rounded-full w-7 h-7 flex items-center justify-center cursor-pointer relative">
+                <Link href="/list/announcements" className="bg-white rounded-full w-7 h-7 flex items-center justify-center cursor-pointer relative">
                     <Image src="/announcement.png" alt="" width={20} height={20} />
-                    <div className="absolute -top-3 -right-3 w-5 h-5 flex items-center justify-center bg-purple-500 rounded-full text-xs">1</div>
-                </div>
+                    {unseenAnnouncementsCount > 0 && (
+                        <div className="absolute -top-3 -right-3 w-5 h-5 flex items-center justify-center bg-purple-500 rounded-full text-xs text-white">
+                            {unseenAnnouncementsCount}
+                        </div>
+                    )}
+                </Link>
                 {/* Avatar */}
                 <div className="flex flex-col">
                 <span className="text-xs leading-3 font-medium">

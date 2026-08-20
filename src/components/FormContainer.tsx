@@ -95,6 +95,40 @@ const FormContainer =  async ({
                     relatedData = { lessons: examLessons};
                     break;
                 }
+                case "assignment": {
+                    const assignmentLessons = await prisma.lesson.findMany({
+                        where: {
+                            ...(role === "teacher" ? { teacherId: currentUserId! } : {}),
+                        },
+                        select: { id: true, name: true },
+                        take: 500,
+                    });
+                    relatedData = { lessons: assignmentLessons };
+                    break;
+                }
+                case "lesson": {
+                    const [lessonSubjects, lessonClasses, lessonTeachers] =
+                        await Promise.all([
+                            prisma.subject.findMany({
+                                select: { id: true, name: true },
+                                take: 500,
+                            }),
+                            prisma.class.findMany({
+                                select: { id: true, name: true },
+                                take: 500,
+                            }),
+                            prisma.teacher.findMany({
+                                select: { id: true, name: true, surname: true },
+                                take: 500,
+                            }),
+                        ]);
+                    relatedData = {
+                        subjects: lessonSubjects,
+                        classes: lessonClasses,
+                        teachers: lessonTeachers,
+                    };
+                    break;
+                }
                 case "message": {
                     // Everyone can message everyone else, so the recipient
                     // picker pulls one page of each role (capped, same as

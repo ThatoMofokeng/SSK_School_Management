@@ -30,6 +30,23 @@ export default clerkMiddleware(async (auth, req) => {
       return NextResponse.redirect(new URL(`/${role}`, req.url));
     }
   }
+
+  // Mark announcements as "seen" the moment the list page is requested.
+  // Doing this here (server-side, in the same response) rather than via
+  // a client-side effect avoids a race with Next.js Link prefetching:
+  // a prefetched detail page could otherwise render with the navbar's
+  // old (pre-seen) unread count baked in before the client had a chance
+  // to set the cookie.
+  if (req.nextUrl.pathname === '/list/announcements') {
+    const res = NextResponse.next();
+    res.cookies.set('announcementsLastSeenAt', new Date().toISOString(), {
+      path: '/',
+      httpOnly: true,
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24 * 365, // 1 year
+    });
+    return res;
+  }
 });
 
 export const config = {

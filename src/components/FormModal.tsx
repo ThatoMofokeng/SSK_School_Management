@@ -2,8 +2,11 @@
 
 import {
   deleteAnnouncement,
+  deleteAssignment,
+  deleteAttendance,
   deleteClass,
   deleteExam,
+  deleteLesson,
   deleteMessage,
   deleteStudent,
   deleteSubject,
@@ -42,10 +45,10 @@ const deleteActionMap: {
   announcement: deleteAnnouncement,
   // TODO: OTHER DELETE ACTIONS — replace with real actions once built
   parent: notImplementedAction,
-  lesson: notImplementedAction,
-  assignment: notImplementedAction,
+  lesson: deleteLesson,
+  assignment: deleteAssignment,
   result: notImplementedAction,
-  attendance: notImplementedAction,
+  attendance: deleteAttendance,
   event: notImplementedAction,
 };
 
@@ -73,6 +76,15 @@ const MessageForm = dynamic(() => import("./Forms/MessageForm"), {
   loading: () => <h1>Loading...</h1>,
 });
 const AnnouncementForm = dynamic(() => import("./Forms/AnnouncementForm"), {
+  loading: () => <h1>Loading...</h1>,
+});
+const AttendanceForm = dynamic(() => import("./Forms/AttendanceForm"), {
+  loading: () => <h1>Loading...</h1>,
+});
+const AssignmentForm = dynamic(() => import("./Forms/AssignmentForm"), {
+  loading: () => <h1>Loading...</h1>,
+});
+const LessonForm = dynamic(() => import("./Forms/LessonForm"), {
   loading: () => <h1>Loading...</h1>,
 });
 // TODO: OTHER FORMS
@@ -136,6 +148,30 @@ const forms: {
   ),
   announcement: (setOpen, type, data, relatedData) => (
     <AnnouncementForm
+      type={type}
+      data={data}
+      setOpen={setOpen}
+      relatedData={relatedData}
+    />
+  ),
+  attendance: (setOpen, type, data, relatedData) => (
+    <AttendanceForm
+      type={type}
+      data={data}
+      setOpen={setOpen}
+      relatedData={relatedData}
+    />
+  ),
+  assignment: (setOpen, type, data, relatedData) => (
+    <AssignmentForm
+      type={type}
+      data={data}
+      setOpen={setOpen}
+      relatedData={relatedData}
+    />
+  ),
+  lesson: (setOpen, type, data, relatedData) => (
+    <LessonForm
       type={type}
       data={data}
       setOpen={setOpen}
