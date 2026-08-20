@@ -1,7 +1,7 @@
-import FormModal from "@/components/FormModal";
 import Pagination from "@/components/Pagination";
 import Table from "@/components/Table";
 import TableSearch from "@/components/TableSearch";
+import FormContainer from "@/components/FormContainer";
 import prisma from "@/lib/prisma";
 import { ITEMS_PER_PAGE } from "@/lib/setting";
 import { Assignment, Class, Prisma, Subject, Teacher } from "@prisma/client";
@@ -74,8 +74,8 @@ const AssignmentListPage = async ({
         <div className="flex items-center gap-2">
           {(role === "admin" || role === "teacher") && (
             <>
-              <FormModal table="assignment" type="update" data={item} />
-              <FormModal table="assignment" type="delete" id={item.id} />
+              <FormContainer table="assignment" type="update" data={item} />
+              <FormContainer table="assignment" type="delete" id={item.id} />
             </>
           )}
         </div>
@@ -178,10 +178,9 @@ const AssignmentListPage = async ({
             <button className="w-8 h-8 flex items-center justify-center rounded-full bg-lamaYellow">
               <Image src="/sort.png" alt="" width={14} height={14} />
             </button>
-            {role === "admin" ||
-              (role === "teacher" && (
-                <FormModal table="assignment" type="create" />
-              ))}
+            {(role === "admin" || role === "teacher") && (
+              <FormContainer table="assignment" type="create" />
+            )}
           </div>
         </div>
       </div>

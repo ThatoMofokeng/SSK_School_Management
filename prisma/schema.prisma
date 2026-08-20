@@ -184,6 +184,7 @@ model Announcement {
   title       String
   description String
   date        DateTime
+  createdAt   DateTime @default(now())
   classId     Int?
   class       Class?   @relation(fields: [classId], references: [id])
 }
