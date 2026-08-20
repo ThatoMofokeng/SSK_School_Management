@@ -6,6 +6,7 @@ import {
   AssignmentSchema,
   AttendanceSchema,
   ClassSchema,
+  ContentFileSchema,
   ExamSchema,
   LessonSchema,
   MessageSchema,
@@ -665,9 +666,18 @@ export const createAssignment = async (
     await prisma.assignment.create({
       data: {
         title: data.title,
+        description: data.description || null,
         startDate: new Date(data.startDate),
         dueDate: new Date(data.dueDate),
         lessonId: data.lessonId,
+        attachments: {
+          create: (data.attachments || []).map((a) => ({
+            fileName: a.fileName,
+            fileUrl: a.fileUrl,
+            fileType: a.fileType,
+            fileSize: a.fileSize,
+          })),
+        },
       },
     });
 
@@ -702,17 +712,36 @@ export const updateAssignment = async (
       }
     }
 
-    await prisma.assignment.update({
-      where: {
-        id: data.id,
-      },
-      data: {
-        title: data.title,
-        startDate: new Date(data.startDate),
-        dueDate: new Date(data.dueDate),
-        lessonId: data.lessonId,
-      },
-    });
+    // Attachments are replaced wholesale on update rather than diffed,
+    // since the form always sends the full current set (existing files
+    // the teacher didn't remove, plus any newly uploaded ones). Cascade
+    // delete on AssignmentAttachment means this is also what runs if the
+    // assignment itself is later deleted.
+    await prisma.$transaction([
+      prisma.assignmentAttachment.deleteMany({
+        where: { assignmentId: data.id },
+      }),
+      prisma.assignment.update({
+        where: {
+          id: data.id,
+        },
+        data: {
+          title: data.title,
+          description: data.description || null,
+          startDate: new Date(data.startDate),
+          dueDate: new Date(data.dueDate),
+          lessonId: data.lessonId,
+          attachments: {
+            create: (data.attachments || []).map((a) => ({
+              fileName: a.fileName,
+              fileUrl: a.fileUrl,
+              fileType: a.fileType,
+              fileSize: a.fileSize,
+            })),
+          },
+        },
+      }),
+    ]);
 
     revalidatePath("/list/assignments");
     return { success: true, error: false };
@@ -840,6 +869,72 @@ export const deleteLesson = async (
     });
 
     revalidatePath("/list/lessons");
+    return { success: true, error: false };
+  } catch (err) {
+    logError("Server action failed", err, "actions");
+    return { success: false, error: true };
+  }
+};
+
+// ------------------------------------------------------------------
+// CONTENT FILE (shared "Content Collection" library)
+// Admins can see/manage every file. Teachers can see/manage only the
+// files they personally uploaded - mirrors Blackboard's per-user
+// Content Collection scoping.
+// ------------------------------------------------------------------
+
+export const createContentFile = async (
+  currentState: CurrentState,
+  data: ContentFileSchema
+) => {
+  try {
+    const { userId, role } = await requireRole("admin", "teacher");
+
+    await prisma.contentFile.create({
+      data: {
+        fileName: data.fileName,
+        fileUrl: data.fileUrl,
+        fileType: data.fileType,
+        fileSize: data.fileSize,
+        uploadedBy: userId,
+        uploaderRole: role,
+      },
+    });
+
+    revalidatePath("/list/content");
+    return { success: true, error: false };
+  } catch (err) {
+    logError("Server action failed", err, "actions");
+    return { success: false, error: true };
+  }
+};
+
+export const deleteContentFile = async (
+  currentState: CurrentState,
+  data: FormData
+) => {
+  const id = data.get("id") as string;
+
+  try {
+    const { userId, role } = await requireRole("admin", "teacher");
+
+    if (role === "teacher") {
+      const file = await prisma.contentFile.findUnique({
+        where: { id: parseInt(id) },
+      });
+
+      if (!file || file.uploadedBy !== userId) {
+        return { success: false, error: true };
+      }
+    }
+
+    await prisma.contentFile.delete({
+      where: {
+        id: parseInt(id),
+      },
+    });
+
+    revalidatePath("/list/content");
     return { success: true, error: false };
   } catch (err) {
     logError("Server action failed", err, "actions");

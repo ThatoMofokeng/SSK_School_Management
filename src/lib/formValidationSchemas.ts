@@ -154,14 +154,23 @@ export const attendanceSchema = z.object({
 
 export type AttendanceSchema = z.infer<typeof attendanceSchema>;
 
+export const assignmentAttachmentSchema = z.object({
+  fileName: z.string().min(1),
+  fileUrl: z.string().min(1),
+  fileType: z.string().min(1),
+  fileSize: z.coerce.number().optional(),
+});
+
 export const assignmentSchema = z.object({
   id: z.coerce.number().optional(),
   title: z.string().min(1, { message: "Title is required!" }),
+  description: z.string().optional(),
   startDate: z.string().min(1, { message: "Start date is required!" }),
   dueDate: z.string().min(1, { message: "Due date is required!" }),
   lessonId: z.coerce
     .number({ message: "Lesson is required!" })
     .min(1, { message: "Please select a lesson!" }),
+  attachments: z.array(assignmentAttachmentSchema).optional(),
 });
 
 export type AssignmentSchema = z.infer<typeof assignmentSchema>;
@@ -180,3 +189,12 @@ export const lessonSchema = z.object({
 });
 
 export type LessonSchema = z.infer<typeof lessonSchema>;
+
+export const contentFileSchema = z.object({
+  fileName: z.string().min(1),
+  fileUrl: z.string().min(1),
+  fileType: z.string().min(1),
+  fileSize: z.coerce.number().optional(),
+});
+
+export type ContentFileSchema = z.infer<typeof contentFileSchema>;

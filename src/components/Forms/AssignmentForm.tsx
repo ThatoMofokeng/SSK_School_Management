@@ -11,9 +11,39 @@ import {
   startTransition,
   useActionState,
   useEffect,
+  useState,
 } from "react";
 import { toast } from "react-toastify";
 import { useRouter } from "next/navigation";
+import { CldUploadWidget } from "next-cloudinary";
+
+type Attachment = {
+  fileName: string;
+  fileUrl: string;
+  fileType: string;
+  fileSize?: number;
+};
+
+// Cloudinary's unsigned preset ("school") needs "Auto" or "Raw" resource
+// type enabled, and these extensions added to its allowed formats list,
+// in the Cloudinary dashboard - this can't be configured from code.
+const ALLOWED_FORMATS = [
+  "pdf",
+  "doc",
+  "docx",
+  "xls",
+  "xlsx",
+  "ppt",
+  "pptx",
+  "zip",
+];
+
+function formatBytes(bytes?: number) {
+  if (!bytes) return "";
+  const kb = bytes / 1024;
+  if (kb < 1024) return `${kb.toFixed(0)} KB`;
+  return `${(kb / 1024).toFixed(1)} MB`;
+}
 
 const AssignmentForm = ({
   type,
@@ -23,7 +53,11 @@ const AssignmentForm = ({
 }: {
   type: "create" | "update";
   data?: any;
-  setOpen: Dispatch<SetStateAction<boolean>>;
+  // Optional now: the modal still passes this in (see FormModal.tsx),
+  // but the new full-page routes below (list/assignments/new,
+  // list/assignments/[id]/edit) render this form directly on the page,
+  // with no modal to close — see the redirect in onSubmit's effect below.
+  setOpen?: Dispatch<SetStateAction<boolean>>;
   relatedData?: any;
 }) => {
   const {
@@ -35,6 +69,7 @@ const AssignmentForm = ({
     defaultValues: {
       id: data?.id,
       title: data?.title,
+      description: data?.description || "",
       startDate: data?.startDate
         ? new Date(data.startDate).toISOString().slice(0, 10)
         : undefined,
@@ -44,6 +79,19 @@ const AssignmentForm = ({
       lessonId: data?.lessonId,
     },
   });
+
+  const [attachments, setAttachments] = useState<Attachment[]>(
+    (data?.attachments || []).map((a: Attachment) => ({
+      fileName: a.fileName,
+      fileUrl: a.fileUrl,
+      fileType: a.fileType,
+      fileSize: a.fileSize,
+    }))
+  );
+
+  const removeAttachment = (fileUrl: string) => {
+    setAttachments((prev) => prev.filter((a) => a.fileUrl !== fileUrl));
+  };
 
   const [state, formAction] = useActionState(
     type === "create" ? createAssignment : updateAssignment,
@@ -55,7 +103,7 @@ const AssignmentForm = ({
 
   const onSubmit = handleSubmit((formData) => {
     startTransition(() => {
-      formAction(formData);
+      formAction({ ...formData, attachments });
     });
   });
 
@@ -64,12 +112,20 @@ const AssignmentForm = ({
   useEffect(() => {
     if (state.success) {
       toast(`Assignment has been ${type === "create" ? "created" : "updated"}!`);
-      setOpen(false);
-      router.refresh();
+      if (setOpen) {
+        // Modal context (old call sites, if any remain).
+        setOpen(false);
+        router.refresh();
+      } else {
+        // Full-page context (list/assignments/new, .../[id]/edit) — there's
+        // no modal to close, so go back to the list instead.
+        router.push("/list/assignments");
+        router.refresh();
+      }
     }
   }, [state, router, type, setOpen]);
 
-  const { lessons } = relatedData;
+  const { lessons, contentFiles } = relatedData;
 
   return (
     <form className="flex flex-col gap-8" onSubmit={onSubmit}>
@@ -125,13 +181,21 @@ const AssignmentForm = ({
             className="ring-[1.5px] ring-gray-300 p-2 rounded-md text-sm w-full"
             {...register("lessonId")}
             defaultValue={data?.lessonId}
+            disabled={lessons.length === 0}
           >
+            <option value="">Select a lesson...</option>
             {lessons.map((lesson: { id: number; name: string }) => (
               <option value={lesson.id} key={lesson.id}>
                 {lesson.name}
               </option>
             ))}
           </select>
+          {lessons.length === 0 && (
+            <p className="text-xs text-red-400">
+              No lessons are assigned to you yet. Ask an admin to assign you
+              a lesson before creating an assignment.
+            </p>
+          )}
           {errors.lessonId?.message && (
             <p className="text-xs text-red-400">
               {errors.lessonId.message.toString()}
@@ -139,10 +203,142 @@ const AssignmentForm = ({
           )}
         </div>
       </div>
+
+      <div className="flex flex-col gap-2">
+        <label className="text-xs text-gray-500">
+          Instructions / description
+        </label>
+        <textarea
+          className="ring-[1.5px] ring-gray-300 p-2 rounded-md text-sm w-full min-h-[120px]"
+          placeholder="Write the assignment instructions here..."
+          {...register("description")}
+          defaultValue={data?.description || ""}
+        />
+        {errors.description?.message && (
+          <p className="text-xs text-red-400">
+            {errors.description.message.toString()}
+          </p>
+        )}
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <label className="text-xs text-gray-500">Attachments</label>
+
+        {attachments.length > 0 && (
+          <ul className="flex flex-col gap-1">
+            {attachments.map((a) => (
+              <li
+                key={a.fileUrl}
+                className="flex items-center justify-between text-sm bg-gray-50 rounded-md px-3 py-2"
+              >
+                <a
+                  href={a.fileUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-lamaSky hover:underline truncate"
+                >
+                  {a.fileName}
+                </a>
+                <div className="flex items-center gap-3 shrink-0 pl-3">
+                  <span className="text-xs text-gray-400">
+                    {formatBytes(a.fileSize)}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => removeAttachment(a.fileUrl)}
+                    className="text-xs text-red-400 hover:underline"
+                  >
+                    Remove
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <CldUploadWidget
+          uploadPreset="school"
+          options={{
+            multiple: true,
+            maxFiles: 10,
+            resourceType: "auto",
+            clientAllowedFormats: ALLOWED_FORMATS,
+          }}
+          onSuccess={(result) => {
+            const info = result.info;
+            if (!info || typeof info === "string") return;
+            setAttachments((prev) => [
+              ...prev,
+              {
+                fileName: `${info.original_filename}.${info.format}`,
+                fileUrl: info.secure_url,
+                fileType: info.format,
+                fileSize: info.bytes,
+              },
+            ]);
+          }}
+        >
+          {({ open }) => (
+            <button
+              type="button"
+              onClick={() => open()}
+              className="text-xs text-gray-600 flex items-center gap-2 border border-dashed border-gray-300 rounded-md px-3 py-2 w-max hover:bg-gray-50"
+            >
+              Upload PDF, Word, Excel, PowerPoint, or ZIP
+            </button>
+          )}
+        </CldUploadWidget>
+
+        {contentFiles.length > 0 && (
+          <div className="flex flex-col gap-2 mt-2">
+            <p className="text-xs text-gray-500">
+              Or attach from your{" "}
+              <a
+                href="/list/content"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-lamaSky hover:underline"
+              >
+                Content Collection
+              </a>
+              :
+            </p>
+            <ul className="flex flex-col gap-1 max-h-40 overflow-y-auto border border-gray-100 rounded-md">
+              {contentFiles.map((f: Attachment) => {
+                const alreadyAdded = attachments.some(
+                  (a) => a.fileUrl === f.fileUrl
+                );
+                return (
+                  <li
+                    key={f.fileUrl}
+                    className="flex items-center justify-between text-xs px-3 py-2 border-b border-gray-100 last:border-0"
+                  >
+                    <span className="truncate">{f.fileName}</span>
+                    <button
+                      type="button"
+                      disabled={alreadyAdded}
+                      onClick={() =>
+                        setAttachments((prev) => [...prev, f])
+                      }
+                      className="text-lamaSky hover:underline shrink-0 pl-3 disabled:text-gray-300 disabled:no-underline"
+                    >
+                      {alreadyAdded ? "Added" : "Add"}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
+      </div>
+
       {state.error && (
         <span className="text-red-500">Something went wrong!</span>
       )}
-      <button className="bg-blue-400 text-white p-2 rounded-md">
+      <button
+        className="bg-blue-400 text-white p-2 rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+        disabled={lessons.length === 0}
+      >
         {type === "create" ? "Create" : "Update"}
       </button>
     </form>

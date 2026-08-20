@@ -6,9 +6,12 @@ import prisma from "@/lib/prisma";
 import { ITEMS_PER_PAGE } from "@/lib/setting";
 import { Assignment, Class, Prisma, Subject, Teacher } from "@prisma/client";
 import Image from "next/image";
+import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
 
 type AssignmentList = Assignment & {
+  description: string | null;
+  attachments: { id: number; fileName: string; fileUrl: string; fileType: string; fileSize: number | null }[];
   Lesson: {
     subject: Subject;
     class: Class;
@@ -62,7 +65,14 @@ const AssignmentListPage = async ({
       key={item.id}
       className="border-b border-gray-200 even:bg-slate-50 text-sm hover:bg-lamaPurpleLight"
     >
-      <td className="flex items-center gap-4 p-4">{item.Lesson.subject.name}</td>
+      <td className="p-0">
+        <Link
+          href={`/list/assignments/${item.id}`}
+          className="flex items-center gap-4 p-4"
+        >
+          {item.Lesson.subject.name}
+        </Link>
+      </td>
       <td>{item.Lesson.class.name}</td>
       <td className="hidden md:table-cell">
         {item.Lesson.teacher.name + " " + item.Lesson.teacher.surname}
@@ -156,6 +166,7 @@ const AssignmentListPage = async ({
             class: { select: { name: true } },
           },
         },
+        attachments: true,
       },
       take: ITEMS_PER_PAGE,
       skip: ITEMS_PER_PAGE * (p - 1),

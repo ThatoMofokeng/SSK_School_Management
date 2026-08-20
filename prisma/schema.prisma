@@ -130,15 +130,50 @@ model Exam {
 }
 
 model Assignment {
-  id        Int      @id @default(autoincrement())
-  title     String
-  startDate DateTime
-  dueDate   DateTime
-  lessonId  Int
-  Lesson    Lesson   @relation(fields: [lessonId], references: [id])
-  results   Result[]
+  id          Int                   @id @default(autoincrement())
+  title       String
+  description String?
+  startDate   DateTime
+  dueDate     DateTime
+  lessonId    Int
+  Lesson      Lesson                @relation(fields: [lessonId], references: [id])
+  results     Result[]
+  attachments AssignmentAttachment[]
 
   @@index([lessonId])
+}
+
+model AssignmentAttachment {
+  id           Int        @id @default(autoincrement())
+  assignmentId Int
+  fileName     String
+  fileUrl      String
+  fileType     String
+  fileSize     Int?
+  createdAt    DateTime   @default(now())
+  assignment   Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+
+  @@index([assignmentId])
+}
+
+// A shared file library ("Content Collection", Blackboard-style). Admins
+// see and manage every file; teachers see and manage only their own
+// uploads. Assignments can either upload a new file directly or attach
+// an existing one from here - either way the attachment is stored as a
+// standalone metadata snapshot on AssignmentAttachment, not a live FK,
+// so deleting a library file later doesn't retroactively break an
+// assignment that already referenced it.
+model ContentFile {
+  id           Int      @id @default(autoincrement())
+  fileName     String
+  fileUrl      String
+  fileType     String
+  fileSize     Int?
+  uploadedBy   String
+  uploaderRole String
+  createdAt    DateTime @default(now())
+
+  @@index([uploadedBy])
 }
 
 model Result {

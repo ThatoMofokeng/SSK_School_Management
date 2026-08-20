@@ -103,7 +103,17 @@ const FormContainer =  async ({
                         select: { id: true, name: true },
                         take: 500,
                     });
-                    relatedData = { lessons: assignmentLessons };
+                    // Same scoping as the Content Collection page: admin
+                    // sees everything, teacher sees only their own uploads.
+                    const assignmentContentFiles = await prisma.contentFile.findMany({
+                        where: role === "admin" ? {} : { uploadedBy: currentUserId! },
+                        orderBy: { createdAt: "desc" },
+                        take: 200,
+                    });
+                    relatedData = {
+                        lessons: assignmentLessons,
+                        contentFiles: assignmentContentFiles,
+                    };
                     break;
                 }
                 case "lesson": {
