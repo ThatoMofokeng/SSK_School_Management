@@ -7,10 +7,12 @@ import {
   AttendanceSchema,
   ClassSchema,
   ContentFileSchema,
+  EventSchema,
   ExamSchema,
   LessonSchema,
   MessageSchema,
   ParentSchema,
+  ResultSchema,
   StudentSchema,
   SubjectSchema,
   TeacherSchema,
@@ -121,7 +123,8 @@ export const createClass = async (
   data: ClassSchema
 ) => {
   try {
-    await requireRole("admin");
+    const { userId } = await requireRole("admin");
+    await checkRateLimit(userId, "create-class");
 
     await prisma.class.create({
       data,
@@ -130,6 +133,9 @@ export const createClass = async (
     revalidatePath("/list/classes");
     return { success: true, error: false };
   } catch (err) {
+    if (err instanceof RateLimitError) {
+      return { success: false, error: true, message: err.message };
+    }
     logError("Server action failed", err, "actions");
     return { success: false, error: true };
   }
@@ -140,7 +146,8 @@ export const updateClass = async (
   data: ClassSchema
 ) => {
   try {
-    await requireRole("admin");
+    const { userId } = await requireRole("admin");
+    await checkRateLimit(userId, "update-class");
 
     await prisma.class.update({
       where: {
@@ -152,6 +159,9 @@ export const updateClass = async (
     revalidatePath("/list/classes");
     return { success: true, error: false };
   } catch (err) {
+    if (err instanceof RateLimitError) {
+      return { success: false, error: true, message: err.message };
+    }
     logError("Server action failed", err, "actions");
     return { success: false, error: true };
   }
@@ -163,7 +173,8 @@ export const deleteClass = async (
 ) => {
   const id = data.get("id") as string;
   try {
-    await requireRole("admin");
+    const { userId } = await requireRole("admin");
+    await checkRateLimit(userId, "delete-class");
 
     await prisma.class.delete({
       where: {
@@ -174,6 +185,9 @@ export const deleteClass = async (
     revalidatePath("/list/classes");
     return { success: true, error: false };
   } catch (err) {
+    if (err instanceof RateLimitError) {
+      return { success: false, error: true, message: err.message };
+    }
     logError("Server action failed", err, "actions");
     return { success: false, error: true };
   }
@@ -188,7 +202,8 @@ export const createTeacher = async (
   data: TeacherSchema
 ) => {
   try {
-    await requireRole("admin");
+    const { userId } = await requireRole("admin");
+    await checkRateLimit(userId, "create-teacher");
 
     const client = await clerkClient();
     const user = await client.users.createUser({
@@ -226,6 +241,9 @@ export const createTeacher = async (
     revalidatePath("/list/teachers");
     return { success: true, error: false };
   } catch (err) {
+    if (err instanceof RateLimitError) {
+      return { success: false, error: true, message: err.message };
+    }
     logError("Server action failed", err, "actions");
     return { success: false, error: true };
   }
@@ -239,7 +257,8 @@ export const updateTeacher = async (
     return { success: false, error: true };
   }
   try {
-    await requireRole("admin");
+    const { userId } = await requireRole("admin");
+    await checkRateLimit(userId, "update-teacher");
 
     const client = await clerkClient();
     await client.users.updateUser(data.id, {
@@ -275,6 +294,9 @@ export const updateTeacher = async (
     revalidatePath("/list/teachers");
     return { success: true, error: false };
   } catch (err) {
+    if (err instanceof RateLimitError) {
+      return { success: false, error: true, message: err.message };
+    }
     logError("Server action failed", err, "actions");
     return { success: false, error: true };
   }
@@ -286,7 +308,8 @@ export const deleteTeacher = async (
 ) => {
   const id = data.get("id") as string;
   try {
-    await requireRole("admin");
+    const { userId } = await requireRole("admin");
+    await checkRateLimit(userId, "delete-teacher");
 
     const client = await clerkClient();
     await client.users.deleteUser(id);
@@ -300,6 +323,9 @@ export const deleteTeacher = async (
     revalidatePath("/list/teachers");
     return { success: true, error: false };
   } catch (err) {
+    if (err instanceof RateLimitError) {
+      return { success: false, error: true, message: err.message };
+    }
     logError("Server action failed", err, "actions");
     return { success: false, error: true };
   }
@@ -314,7 +340,8 @@ export const createStudent = async (
   data: StudentSchema
 ) => {
   try {
-    await requireRole("admin");
+    const { userId } = await requireRole("admin");
+    await checkRateLimit(userId, "create-student");
 
     const classItem = await prisma.class.findUnique({
       where: { id: data.classId },
@@ -359,6 +386,9 @@ export const createStudent = async (
     revalidatePath("/list/students");
     return { success: true, error: false };
   } catch (err) {
+    if (err instanceof RateLimitError) {
+      return { success: false, error: true, message: err.message };
+    }
     logError("Server action failed", err, "actions");
     return { success: false, error: true };
   }
@@ -372,7 +402,8 @@ export const updateStudent = async (
     return { success: false, error: true };
   }
   try {
-    await requireRole("admin");
+    const { userId } = await requireRole("admin");
+    await checkRateLimit(userId, "update-student");
 
     const client = await clerkClient();
     await client.users.updateUser(data.id, {
@@ -406,6 +437,9 @@ export const updateStudent = async (
     revalidatePath("/list/students");
     return { success: true, error: false };
   } catch (err) {
+    if (err instanceof RateLimitError) {
+      return { success: false, error: true, message: err.message };
+    }
     logError("Server action failed", err, "actions");
     return { success: false, error: true };
   }
@@ -417,7 +451,8 @@ export const deleteStudent = async (
 ) => {
   const id = data.get("id") as string;
   try {
-    await requireRole("admin");
+    const { userId } = await requireRole("admin");
+    await checkRateLimit(userId, "delete-student");
 
     const client = await clerkClient();
     await client.users.deleteUser(id);
@@ -431,6 +466,9 @@ export const deleteStudent = async (
     revalidatePath("/list/students");
     return { success: true, error: false };
   } catch (err) {
+    if (err instanceof RateLimitError) {
+      return { success: false, error: true, message: err.message };
+    }
     logError("Server action failed", err, "actions");
     return { success: false, error: true };
   }
@@ -445,7 +483,8 @@ export const createParent = async (
   data: ParentSchema
 ) => {
   try {
-    await requireRole("admin");
+    const { userId } = await requireRole("admin");
+    await checkRateLimit(userId, "create-parent");
 
     const client = await clerkClient();
     const user = await client.users.createUser({
@@ -472,6 +511,9 @@ export const createParent = async (
     revalidatePath("/list/parents");
     return { success: true, error: false };
   } catch (err) {
+    if (err instanceof RateLimitError) {
+      return { success: false, error: true, message: err.message };
+    }
     logError("Server action failed", err, "actions");
     return { success: false, error: true };
   }
@@ -485,7 +527,8 @@ export const updateParent = async (
     return { success: false, error: true };
   }
   try {
-    await requireRole("admin");
+    const { userId } = await requireRole("admin");
+    await checkRateLimit(userId, "update-parent");
 
     const client = await clerkClient();
     await client.users.updateUser(data.id, {
@@ -512,6 +555,41 @@ export const updateParent = async (
     revalidatePath("/list/parents");
     return { success: true, error: false };
   } catch (err) {
+    if (err instanceof RateLimitError) {
+      return { success: false, error: true, message: err.message };
+    }
+    logError("Server action failed", err, "actions");
+    return { success: false, error: true };
+  }
+};
+
+export const deleteParent = async (
+  currentState: CurrentState,
+  data: FormData
+) => {
+  const id = data.get("id") as string;
+  try {
+    const { userId } = await requireRole("admin");
+    await checkRateLimit(userId, "delete-parent");
+
+    // Student.parentId has no cascade, so this throws (and the generic
+    // catch below reports it) if any student is still linked - matching
+    // the hint ParentForm already shows on error.
+    const client = await clerkClient();
+    await client.users.deleteUser(id);
+
+    await prisma.parent.delete({
+      where: {
+        id: id,
+      },
+    });
+
+    revalidatePath("/list/parents");
+    return { success: true, error: false };
+  } catch (err) {
+    if (err instanceof RateLimitError) {
+      return { success: false, error: true, message: err.message };
+    }
     logError("Server action failed", err, "actions");
     return { success: false, error: true };
   }
@@ -531,6 +609,7 @@ export const createExam = async (
 ) => {
   try {
     const { userId, role } = await requireRole("admin", "teacher");
+    await checkRateLimit(userId, "create-exam");
 
     if (role === "teacher") {
       const teacherLesson = await prisma.lesson.findFirst({
@@ -557,6 +636,9 @@ export const createExam = async (
     revalidatePath("/list/exams");
     return { success: true, error: false };
   } catch (err) {
+    if (err instanceof RateLimitError) {
+      return { success: false, error: true, message: err.message };
+    }
     logError("Server action failed", err, "actions");
     return { success: false, error: true };
   }
@@ -568,6 +650,7 @@ export const updateExam = async (
 ) => {
   try {
     const { userId, role } = await requireRole("admin", "teacher");
+    await checkRateLimit(userId, "update-exam");
 
     if (role === "teacher") {
       const teacherLesson = await prisma.lesson.findFirst({
@@ -597,6 +680,9 @@ export const updateExam = async (
     revalidatePath("/list/exams");
     return { success: true, error: false };
   } catch (err) {
+    if (err instanceof RateLimitError) {
+      return { success: false, error: true, message: err.message };
+    }
     logError("Server action failed", err, "actions");
     return { success: false, error: true };
   }
@@ -610,6 +696,7 @@ export const deleteExam = async (
 
   try {
     const { userId, role } = await requireRole("admin", "teacher");
+    await checkRateLimit(userId, "delete-exam");
 
     // Prisma's delete() `where` only accepts unique fields, so ownership
     // for teachers has to be verified with a separate lookup first rather
@@ -634,6 +721,132 @@ export const deleteExam = async (
     revalidatePath("/list/exams");
     return { success: true, error: false };
   } catch (err) {
+    if (err instanceof RateLimitError) {
+      return { success: false, error: true, message: err.message };
+    }
+    logError("Server action failed", err, "actions");
+    return { success: false, error: true };
+  }
+};
+
+// ------------------------------------------------------------------
+// RESULT
+// Same ownership model as exams/attendance: teachers may only record
+// results for exams tied to lessons they teach; admins may act on any.
+// ------------------------------------------------------------------
+
+export const createResult = async (
+  currentState: CurrentState,
+  data: ResultSchema
+) => {
+  try {
+    const { userId, role } = await requireRole("admin", "teacher");
+    await checkRateLimit(userId, "create-result");
+
+    if (role === "teacher") {
+      const exam = await prisma.exam.findUnique({
+        where: { id: data.examId },
+        include: { Lesson: true },
+      });
+
+      if (!exam || exam.Lesson.teacherId !== userId) {
+        return { success: false, error: true };
+      }
+    }
+
+    await prisma.result.create({
+      data: {
+        score: data.score,
+        examId: data.examId,
+        assignmentId: data.assignmentId || null,
+        studentId: data.studentId,
+      },
+    });
+
+    revalidatePath("/list/results");
+    return { success: true, error: false };
+  } catch (err) {
+    if (err instanceof RateLimitError) {
+      return { success: false, error: true, message: err.message };
+    }
+    logError("Server action failed", err, "actions");
+    return { success: false, error: true };
+  }
+};
+
+export const updateResult = async (
+  currentState: CurrentState,
+  data: ResultSchema
+) => {
+  if (!data.id) {
+    return { success: false, error: true };
+  }
+  try {
+    const { userId, role } = await requireRole("admin", "teacher");
+    await checkRateLimit(userId, "update-result");
+
+    if (role === "teacher") {
+      const exam = await prisma.exam.findUnique({
+        where: { id: data.examId },
+        include: { Lesson: true },
+      });
+
+      if (!exam || exam.Lesson.teacherId !== userId) {
+        return { success: false, error: true };
+      }
+    }
+
+    await prisma.result.update({
+      where: { id: data.id },
+      data: {
+        score: data.score,
+        examId: data.examId,
+        assignmentId: data.assignmentId || null,
+        studentId: data.studentId,
+      },
+    });
+
+    revalidatePath("/list/results");
+    return { success: true, error: false };
+  } catch (err) {
+    if (err instanceof RateLimitError) {
+      return { success: false, error: true, message: err.message };
+    }
+    logError("Server action failed", err, "actions");
+    return { success: false, error: true };
+  }
+};
+
+export const deleteResult = async (
+  currentState: CurrentState,
+  data: FormData
+) => {
+  const id = data.get("id") as string;
+  try {
+    const { userId, role } = await requireRole("admin", "teacher");
+    await checkRateLimit(userId, "delete-result");
+
+    if (role === "teacher") {
+      const result = await prisma.result.findUnique({
+        where: { id: parseInt(id) },
+        include: { exam: { include: { Lesson: true } } },
+      });
+
+      if (!result || result.exam.Lesson.teacherId !== userId) {
+        return { success: false, error: true };
+      }
+    }
+
+    await prisma.result.delete({
+      where: { id: parseInt(id) },
+    });
+
+    revalidatePath("/list/results");
+    return { success: true, error: false };
+  } catch (err) {
+    if (err instanceof RateLimitError) {
+      return { success: false, error: true, message: err.message };
+    }
     logError("Server action failed", err, "actions");
     return { success: false, error: true };
   }
@@ -649,6 +862,7 @@ export const createAssignment = async (
 ) => {
   try {
     const { userId, role } = await requireRole("admin", "teacher");
+    await checkRateLimit(userId, "create-assignment");
 
     if (role === "teacher") {
       const teacherLesson = await prisma.lesson.findFirst({
@@ -684,6 +898,9 @@ export const createAssignment = async (
     revalidatePath("/list/assignments");
     return { success: true, error: false };
   } catch (err) {
+    if (err instanceof RateLimitError) {
+      return { success: false, error: true, message: err.message };
+    }
     logError("Server action failed", err, "actions");
     return { success: false, error: true };
   }
@@ -698,6 +915,7 @@ export const updateAssignment = async (
   }
   try {
     const { userId, role } = await requireRole("admin", "teacher");
+    await checkRateLimit(userId, "update-assignment");
 
     if (role === "teacher") {
       const teacherLesson = await prisma.lesson.findFirst({
@@ -746,6 +964,9 @@ export const updateAssignment = async (
     revalidatePath("/list/assignments");
     return { success: true, error: false };
   } catch (err) {
+    if (err instanceof RateLimitError) {
+      return { success: false, error: true, message: err.message };
+    }
     logError("Server action failed", err, "actions");
     return { success: false, error: true };
   }
@@ -759,6 +980,7 @@ export const deleteAssignment = async (
 
   try {
     const { userId, role } = await requireRole("admin", "teacher");
+    await checkRateLimit(userId, "delete-assignment");
 
     if (role === "teacher") {
       const assignment = await prisma.assignment.findUnique({
@@ -780,6 +1002,9 @@ export const deleteAssignment = async (
     revalidatePath("/list/assignments");
     return { success: true, error: false };
   } catch (err) {
+    if (err instanceof RateLimitError) {
+      return { success: false, error: true, message: err.message };
+    }
     logError("Server action failed", err, "actions");
     return { success: false, error: true };
   }
@@ -798,7 +1023,8 @@ export const createLesson = async (
   data: LessonSchema
 ) => {
   try {
-    await requireRole("admin");
+    const { userId } = await requireRole("admin");
+    await checkRateLimit(userId, "create-lesson");
 
     await prisma.lesson.create({
       data: {
@@ -815,6 +1041,9 @@ export const createLesson = async (
     revalidatePath("/list/lessons");
     return { success: true, error: false };
   } catch (err) {
+    if (err instanceof RateLimitError) {
+      return { success: false, error: true, message: err.message };
+    }
     logError("Server action failed", err, "actions");
     return { success: false, error: true };
   }
@@ -828,7 +1057,8 @@ export const updateLesson = async (
     return { success: false, error: true };
   }
   try {
-    await requireRole("admin");
+    const { userId } = await requireRole("admin");
+    await checkRateLimit(userId, "update-lesson");
 
     await prisma.lesson.update({
       where: {
@@ -848,6 +1078,9 @@ export const updateLesson = async (
     revalidatePath("/list/lessons");
     return { success: true, error: false };
   } catch (err) {
+    if (err instanceof RateLimitError) {
+      return { success: false, error: true, message: err.message };
+    }
     logError("Server action failed", err, "actions");
     return { success: false, error: true };
   }
@@ -860,7 +1093,8 @@ export const deleteLesson = async (
   const id = data.get("id") as string;
 
   try {
-    await requireRole("admin");
+    const { userId } = await requireRole("admin");
+    await checkRateLimit(userId, "delete-lesson");
 
     await prisma.lesson.delete({
       where: {
@@ -871,6 +1105,9 @@ export const deleteLesson = async (
     revalidatePath("/list/lessons");
     return { success: true, error: false };
   } catch (err) {
+    if (err instanceof RateLimitError) {
+      return { success: false, error: true, message: err.message };
+    }
     logError("Server action failed", err, "actions");
     return { success: false, error: true };
   }
@@ -889,6 +1126,7 @@ export const createContentFile = async (
 ) => {
   try {
     const { userId, role } = await requireRole("admin", "teacher");
+    await checkRateLimit(userId, "create-contentfile");
 
     await prisma.contentFile.create({
       data: {
@@ -904,6 +1142,9 @@ export const createContentFile = async (
     revalidatePath("/list/content");
     return { success: true, error: false };
   } catch (err) {
+    if (err instanceof RateLimitError) {
+      return { success: false, error: true, message: err.message };
+    }
     logError("Server action failed", err, "actions");
     return { success: false, error: true };
   }
@@ -917,6 +1158,7 @@ export const deleteContentFile = async (
 
   try {
     const { userId, role } = await requireRole("admin", "teacher");
+    await checkRateLimit(userId, "delete-contentfile");
 
     if (role === "teacher") {
       const file = await prisma.contentFile.findUnique({
@@ -937,6 +1179,9 @@ export const deleteContentFile = async (
     revalidatePath("/list/content");
     return { success: true, error: false };
   } catch (err) {
+    if (err instanceof RateLimitError) {
+      return { success: false, error: true, message: err.message };
+    }
     logError("Server action failed", err, "actions");
     return { success: false, error: true };
   }
@@ -1046,6 +1291,7 @@ export const deleteMessage = async (
       "student",
       "parent"
     );
+    await checkRateLimit(userId, "delete-message");
 
     const message = await (prisma as any).message.findUnique({
       where: { id: parseInt(id) },
@@ -1067,6 +1313,9 @@ export const deleteMessage = async (
     revalidatePath("/list/messages");
     return { success: true, error: false };
   } catch (err) {
+    if (err instanceof RateLimitError) {
+      return { success: false, error: true, message: err.message };
+    }
     logError("Server action failed", err, "actions");
     return { success: false, error: true };
   }
@@ -1102,7 +1351,8 @@ export const createAnnouncement = async (
   data: AnnouncementSchema
 ) => {
   try {
-    await requireRole("admin");
+    const { userId } = await requireRole("admin");
+    await checkRateLimit(userId, "create-announcement");
 
     await prisma.announcement.create({
       data: {
@@ -1116,6 +1366,9 @@ export const createAnnouncement = async (
     revalidatePath("/list/announcements");
     return { success: true, error: false };
   } catch (err) {
+    if (err instanceof RateLimitError) {
+      return { success: false, error: true, message: err.message };
+    }
     logError("Server action failed", err, "actions");
     return { success: false, error: true };
   }
@@ -1129,7 +1382,8 @@ export const updateAnnouncement = async (
     return { success: false, error: true };
   }
   try {
-    await requireRole("admin");
+    const { userId } = await requireRole("admin");
+    await checkRateLimit(userId, "update-announcement");
 
     await prisma.announcement.update({
       where: { id: data.id },
@@ -1144,6 +1398,9 @@ export const updateAnnouncement = async (
     revalidatePath("/list/announcements");
     return { success: true, error: false };
   } catch (err) {
+    if (err instanceof RateLimitError) {
+      return { success: false, error: true, message: err.message };
+    }
     logError("Server action failed", err, "actions");
     return { success: false, error: true };
   }
@@ -1155,7 +1412,8 @@ export const deleteAnnouncement = async (
 ) => {
   const id = data.get("id") as string;
   try {
-    await requireRole("admin");
+    const { userId } = await requireRole("admin");
+    await checkRateLimit(userId, "delete-announcement");
 
     await prisma.announcement.delete({
       where: { id: parseInt(id) },
@@ -1164,10 +1422,106 @@ export const deleteAnnouncement = async (
     revalidatePath("/list/announcements");
     return { success: true, error: false };
   } catch (err) {
+    if (err instanceof RateLimitError) {
+      return { success: false, error: true, message: err.message };
+    }
     logError("Server action failed", err, "actions");
     return { success: false, error: true };
   }
 };
+
+// ------------------------------------------------------------------
+// EVENT
+// Admin-only, same shape as Announcement: classId null means a
+// school-wide event, otherwise it's scoped to one class.
+// ------------------------------------------------------------------
+
+export const createEvent = async (
+  currentState: CurrentState,
+  data: EventSchema
+) => {
+  try {
+    const { userId } = await requireRole("admin");
+    await checkRateLimit(userId, "create-event");
+
+    await prisma.event.create({
+      data: {
+        title: data.title,
+        description: data.description,
+        startTime: new Date(data.startTime),
+        endTime: new Date(data.endTime),
+        classId: data.classId || null,
+      },
+    });
+
+    revalidatePath("/list/events");
+    return { success: true, error: false };
+  } catch (err) {
+    if (err instanceof RateLimitError) {
+      return { success: false, error: true, message: err.message };
+    }
+    logError("Server action failed", err, "actions");
+    return { success: false, error: true };
+  }
+};
+
+export const updateEvent = async (
+  currentState: CurrentState,
+  data: EventSchema
+) => {
+  if (!data.id) {
+    return { success: false, error: true };
+  }
+  try {
+    const { userId } = await requireRole("admin");
+    await checkRateLimit(userId, "update-event");
+
+    await prisma.event.update({
+      where: { id: data.id },
+      data: {
+        title: data.title,
+        description: data.description,
+        startTime: new Date(data.startTime),
+        endTime: new Date(data.endTime),
+        classId: data.classId || null,
+      },
+    });
+
+    revalidatePath("/list/events");
+    return { success: true, error: false };
+  } catch (err) {
+    if (err instanceof RateLimitError) {
+      return { success: false, error: true, message: err.message };
+    }
+    logError("Server action failed", err, "actions");
+    return { success: false, error: true };
+  }
+};
+
+export const deleteEvent = async (
+  currentState: CurrentState,
+  data: FormData
+) => {
+  const id = data.get("id") as string;
+  try {
+    const { userId } = await requireRole("admin");
+    await checkRateLimit(userId, "delete-event");
+
+    await prisma.event.delete({
+      where: { id: parseInt(id) },
+    });
+
+    revalidatePath("/list/events");
+    return { success: true, error: false };
+  } catch (err) {
+    if (err instanceof RateLimitError) {
+      return { success: false, error: true, message: err.message };
+    }
+    logError("Server action failed", err, "actions");
+    return { success: false, error: true };
+  }
+};
+
 // ------------------------------------------------------------------
 // ATTENDANCE
 // Same ownership model as exams: teachers may only mark/edit/delete
@@ -1180,6 +1534,7 @@ export const createAttendance = async (
 ) => {
   try {
     const { userId, role } = await requireRole("admin", "teacher");
+    await checkRateLimit(userId, "create-attendance");
 
     if (role === "teacher") {
       const teacherLesson = await prisma.lesson.findFirst({
@@ -1206,6 +1561,9 @@ export const createAttendance = async (
     revalidatePath("/list/attendance");
     return { success: true, error: false };
   } catch (err) {
+    if (err instanceof RateLimitError) {
+      return { success: false, error: true, message: err.message };
+    }
     logError("Server action failed", err, "actions");
     return { success: false, error: true };
   }
@@ -1217,6 +1575,7 @@ export const updateAttendance = async (
 ) => {
   try {
     const { userId, role } = await requireRole("admin", "teacher");
+    await checkRateLimit(userId, "update-attendance");
 
     if (role === "teacher") {
       const teacherLesson = await prisma.lesson.findFirst({
@@ -1246,6 +1605,9 @@ export const updateAttendance = async (
     revalidatePath("/list/attendance");
     return { success: true, error: false };
   } catch (err) {
+    if (err instanceof RateLimitError) {
+      return { success: false, error: true, message: err.message };
+    }
     logError("Server action failed", err, "actions");
     return { success: false, error: true };
   }
@@ -1259,6 +1621,7 @@ export const deleteAttendance = async (
 
   try {
     const { userId, role } = await requireRole("admin", "teacher");
+    await checkRateLimit(userId, "delete-attendance");
 
     if (role === "teacher") {
       const attendance = await prisma.attandance.findUnique({
@@ -1280,6 +1643,9 @@ export const deleteAttendance = async (
     revalidatePath("/list/attendance");
     return { success: true, error: false };
   } catch (err) {
+    if (err instanceof RateLimitError) {
+      return { success: false, error: true, message: err.message };
+    }
     logError("Server action failed", err, "actions");
     return { success: false, error: true };
   }

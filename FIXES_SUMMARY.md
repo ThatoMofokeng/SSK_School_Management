@@ -248,14 +248,24 @@ No schema or migration change was needed — `Announcement` already existed in
 
 ## Known gaps / not yet done
 
-Carried over from the 2026-08-16 audit, still open:
+Updated 2026-08-21:
 
-- Rate limiting only covers Subject actions (3/12 entities).
-- Several other tables still hit `notImplementedAction` in `FormModal.tsx`
-  (`lesson`, `assignment`, `result`, `attendance`, `event`) — same shape of
-  bug as Parent/Announcement, not yet fixed.
-- No automated tests (Vitest or otherwise).
-- `src/lib/actions.ts` is a single monolithic file — worth splitting per
-  entity at some point.
-- No Redis-backed rate limiting — current implementation won't work
-  correctly if this ever runs as more than one container/instance.
+- All 14 entities (Subject, Class, Teacher, Student, Parent, Exam, Result,
+  Assignment, Lesson, ContentFile, Message, Announcement, Event,
+  Attendance) now have real create/update/delete actions wired into
+  `FormModal.tsx` and `FormContainer.tsx` — `notImplementedAction` has
+  been removed entirely, no tables left hitting it.
+- Rate limiting now covers every mutating action (40 call sites across
+  all entities), not just Subject.
+- No automated tests (Vitest or otherwise) — still open.
+- `src/lib/actions.ts` is a single monolithic file (~1500+ lines) —
+  worth splitting per entity at some point, especially now that every
+  entity has full CRUD in it.
+- No Redis-backed rate limiting — current implementation is in-memory
+  and won't work correctly if this ever runs as more than one
+  container/instance. Fine for a single-instance deploy (e.g. one
+  Vercel serverless region with low traffic), but worth revisiting
+  before scaling.
+- Still needs a manual click-through test of Parent/Event/Result CRUD
+  against the real production database - these were built and
+  typechecked but not yet exercised against live Supabase data.

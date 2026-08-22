@@ -67,7 +67,6 @@ export const studentSchema = z.object({
   phone: z.string().optional(),
   address: z.string(),
   img: z.string().optional(),
-  bloodType: z.string().min(1, { message: "Blood Type is required!" }),
   birthday: z.coerce.date({ message: "Birthday is required!" }),
   sex: z.enum(["MALE", "FEMALE"], { message: "Sex is required!" }),
   gradeId: z.coerce.number().min(1, { message: "Grade is required!" }),
@@ -198,3 +197,28 @@ export const contentFileSchema = z.object({
 });
 
 export type ContentFileSchema = z.infer<typeof contentFileSchema>;
+
+export const eventSchema = z.object({
+  id: z.coerce.number().optional(),
+  title: z.string().min(1, { message: "Title is required!" }),
+  description: z.string().min(1, { message: "Description is required!" }),
+  startTime: z.string().min(1, { message: "Start time is required!" }),
+  endTime: z.string().min(1, { message: "End time is required!" }),
+  classId: z.coerce.number().optional().or(z.literal("")),
+});
+
+export type EventSchema = z.infer<typeof eventSchema>;
+
+export const resultSchema = z.object({
+  id: z.coerce.number().optional(),
+  score: z.coerce.number({ message: "Score is required!" }).min(0, {
+    message: "Score can't be negative!",
+  }),
+  examId: z.coerce.number({ message: "Exam is required!" }).min(1, {
+    message: "Please select an exam!",
+  }),
+  assignmentId: z.coerce.number().optional().or(z.literal("")),
+  studentId: z.string().min(1, { message: "Student is required!" }),
+});
+
+export type ResultSchema = z.infer<typeof resultSchema>;

@@ -84,7 +84,13 @@ const AssignmentListPage = async ({
         <div className="flex items-center gap-2">
           {(role === "admin" || role === "teacher") && (
             <>
-              <FormContainer table="assignment" type="update" data={item} />
+              <Link
+                href={`/list/assignments/${item.id}/edit`}
+                className="w-7 h-7 flex items-center justify-center rounded-full bg-lamaSky"
+                title="Edit"
+              >
+                <Image src="/edit.png" alt="" width={16} height={16} />
+              </Link>
               <FormContainer table="assignment" type="delete" id={item.id} />
             </>
           )}
@@ -190,7 +196,13 @@ const AssignmentListPage = async ({
               <Image src="/sort.png" alt="" width={14} height={14} />
             </button>
             {(role === "admin" || role === "teacher") && (
-              <FormContainer table="assignment" type="create" />
+              <Link
+                href="/list/assignments/new"
+                className="w-8 h-8 flex items-center justify-center rounded-full bg-lamaYellow"
+                title="Create assignment"
+              >
+                <Image src="/create.png" alt="" width={14} height={14} />
+              </Link>
             )}
           </div>
         </div>

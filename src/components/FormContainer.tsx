@@ -139,6 +139,58 @@ const FormContainer =  async ({
                     };
                     break;
                 }
+                case "event": {
+                    const eventClasses = await prisma.class.findMany({
+                        select: { id: true, name: true },
+                        take: 500,
+                    });
+                    relatedData = { classes: eventClasses };
+                    break;
+                }
+                case "result": {
+                    // Same ownership scoping as exam/assignment creation:
+                    // teachers only see exams/assignments/students tied to
+                    // lessons they actually teach.
+                    const [resultExams, resultAssignments, resultStudents] =
+                        await Promise.all([
+                            prisma.exam.findMany({
+                                where:
+                                    role === "teacher"
+                                        ? { Lesson: { teacherId: currentUserId! } }
+                                        : {},
+                                select: { id: true, title: true },
+                                take: 500,
+                            }),
+                            prisma.assignment.findMany({
+                                where:
+                                    role === "teacher"
+                                        ? { Lesson: { teacherId: currentUserId! } }
+                                        : {},
+                                select: { id: true, title: true },
+                                take: 500,
+                            }),
+                            prisma.student.findMany({
+                                where:
+                                    role === "teacher"
+                                        ? {
+                                              class: {
+                                                  lessons: {
+                                                      some: { teacherId: currentUserId! },
+                                                  },
+                                              },
+                                          }
+                                        : {},
+                                select: { id: true, name: true, surname: true },
+                                take: 500,
+                            }),
+                        ]);
+                    relatedData = {
+                        exams: resultExams,
+                        assignments: resultAssignments,
+                        students: resultStudents,
+                    };
+                    break;
+                }
                 case "message": {
                     // Everyone can message everyone else, so the recipient
                     // picker pulls one page of each role (capped, same as

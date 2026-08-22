@@ -1,6 +1,7 @@
 import FormContainer from "@/components/FormContainer";
 import prisma from "@/lib/prisma";
 import { auth } from "@clerk/nextjs/server";
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -73,11 +74,13 @@ const SingleAssignmentPage = async ({
         </Link>
         {(role === "admin" || role === "teacher") && (
           <div className="flex items-center gap-2">
-            <FormContainer
-              table="assignment"
-              type="update"
-              data={assignment}
-            />
+            <Link
+              href={`/list/assignments/${assignment.id}/edit`}
+              className="w-7 h-7 flex items-center justify-center rounded-full bg-lamaSky"
+              title="Edit"
+            >
+              <Image src="/edit.png" alt="" width={16} height={16} />
+            </Link>
             <FormContainer
               table="assignment"
               type="delete"
