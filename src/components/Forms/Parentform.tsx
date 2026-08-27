@@ -22,12 +22,19 @@ const ParentForm = ({
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors },
   } = useForm<ParentSchema>({
     resolver: zodResolver(parentSchema),
+    defaultValues: {
+      idType: data?.idType,
+      idNumber: data?.idNumber,
+    },
   });
 
-  const [state, formAction] = useActionState(
+  const idType = watch("idType");
+
+  const [state, formAction, isPending] = useActionState(
     type === "create" ? createParent : updateParent,
     {
       success: false,
@@ -48,6 +55,8 @@ const ParentForm = ({
       toast(`Parent has been ${type === "create" ? "created" : "updated"}!`);
       setOpen(false);
       router.refresh();
+    } else if (state.error && state.message) {
+      toast.error(state.message);
     }
   }, [state, router, type, setOpen]);
 
@@ -81,6 +90,7 @@ const ParentForm = ({
           defaultValue={data?.password}
           register={register}
           error={errors?.password}
+          inputProps={type === "create" ? { required: true, minLength: 8 } : {}}
         />
       </div>
       <span className="text-xs text-gray-400 font-medium">
@@ -126,14 +136,64 @@ const ParentForm = ({
           />
         )}
       </div>
+
+      <span className="text-xs text-gray-400 font-medium">
+        Identification
+      </span>
+      <div className="flex justify-between flex-wrap gap-4">
+        <div className="flex flex-col gap-2 w-full md:w-1/4">
+          <label className="text-xs text-gray-500">ID Type</label>
+          <div className="flex items-center gap-4 h-[42px]">
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="radio"
+                value="SA_ID"
+                {...register("idType")}
+              />
+              South African ID
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="radio"
+                value="PASSPORT"
+                {...register("idType")}
+              />
+              Passport
+            </label>
+          </div>
+          {errors.idType?.message && (
+            <p className="text-xs text-red-400">
+              {errors.idType.message.toString()}
+            </p>
+          )}
+        </div>
+
+        <InputField
+          label={
+            idType === "PASSPORT" ? "Passport Number" : "South African ID Number"
+          }
+          name="idNumber"
+          defaultValue={data?.idNumber}
+          register={register}
+          error={errors?.idNumber}
+          inputProps={
+            idType === "SA_ID" ? { maxLength: 13, inputMode: "numeric" } : {}
+          }
+        />
+      </div>
+
       {state.error && (
         <span className="text-red-500">
-          Something went wrong! If you&apos;re trying to delete this parent,
-          make sure no learners are still linked to them first.
+          {(state as any).message ||
+            "Something went wrong! If you're trying to delete this parent, make sure no learners are still linked to them first."}
         </span>
       )}
-      <button className="bg-blue-400 text-white p-2 rounded-md">
-        {type === "create" ? "Create" : "Update"}
+      <button
+        type="submit"
+        disabled={state.success || isPending}
+        className="bg-blue-400 text-white p-2 rounded-md disabled:opacity-60"
+      >
+        {isPending ? "Saving..." : type === "create" ? "Create" : "Update"}
       </button>
     </form>
   );

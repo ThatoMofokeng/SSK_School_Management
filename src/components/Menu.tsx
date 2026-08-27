@@ -88,6 +88,12 @@ const menuItems = [
         visible: ["admin", "teacher", "student", "parent"],
       },
       {
+        icon: "/upload.png",
+        label: "Content Collection",
+        href: "/list/content",
+        visible: ["admin", "teacher"],
+      },
+      {
         icon: "/announcement.png",
         label: "Announcements",
         href: "/list/announcements",

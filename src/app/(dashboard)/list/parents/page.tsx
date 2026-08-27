@@ -45,6 +45,15 @@ const columns = [
   ...(role === "admin"
     ? [
         {
+          header: "ID / Passport",
+          accessor: "idNumber",
+          className: "hidden lg:table-cell",
+        },
+      ]
+    : []),
+  ...(role === "admin"
+    ? [
+        {
           header: "Actions",
           accessor: "action",
         },
@@ -68,6 +77,13 @@ const renderRow = (item: ParentList) => (
     </td>
     <td className="hidden md:table-cell">{item.phone}</td>
     <td className="hidden md:table-cell">{item.address}</td>
+    {role === "admin" && (
+      <td className="hidden lg:table-cell">
+        {item.idNumber
+          ? `${item.idType === "PASSPORT" ? "Passport" : "SA ID"}: ${item.idNumber}`
+          : "-"}
+      </td>
+    )}
     <td>
       <div className="flex items-center gap-2">
         {role === "admin" && (
@@ -103,17 +119,44 @@ const renderRow = (item: ParentList) => (
     }
   }
 
-  const [data, count] = await prisma.$transaction([
+  // Only select fields rendered by this page. The previous `include: {
+  // students: true }` loaded every student column for every parent.
+  // Running the independent read queries in parallel also avoids keeping a
+  // transaction open while a remote Supabase connection is doing both jobs.
+  const [parents, count] = await Promise.all([
     prisma.parent.findMany({
       where: query,
-      include: {
-        students: true,
+      select: {
+        id: true, username: true, name: true, surname: true, email: true,
+        phone: true, address: true, idType: true, idNumber: true, createdAt: true,
       },
+      orderBy: { name: "asc" },
       take: ITEMS_PER_PAGE,
       skip: ITEMS_PER_PAGE * (p - 1),
     }),
     prisma.parent.count({ where: query }),
   ]);
+
+  const parentIds = parents.map((parent) => parent.id);
+  const students = parentIds.length
+    ? await prisma.student.findMany({
+        where: { parentId: { in: parentIds } },
+        select: { id: true, name: true, surname: true, parentId: true },
+        orderBy: { name: "asc" },
+      })
+    : [];
+
+  const studentsByParent = new Map<string, Student[]>();
+  for (const student of students) {
+    const list = studentsByParent.get(student.parentId) ?? [];
+    list.push(student as Student);
+    studentsByParent.set(student.parentId, list);
+  }
+
+  const data: ParentList[] = parents.map((parent) => ({
+    ...parent,
+    students: studentsByParent.get(parent.id) ?? [],
+  }));
 
   return (
     <div className="bg-white p-4 rounded-md flex-1 m-4 mt-0">

@@ -42,7 +42,7 @@ const StudentForm = ({
 
   const [img, setImg] = useState<any>();
 
-  const [state, formAction] = useActionState(
+  const [state, formAction, isPending] = useActionState(
     type === "create" ? createStudent : updateStudent,
     {
       success: false,
@@ -63,10 +63,15 @@ const StudentForm = ({
       toast(`Student has been ${type === "create" ? "created" : "updated"}!`);
       setOpen(false);
       router.refresh();
+      return;
+    }
+
+    if (state.error && state.message) {
+      toast.error(state.message);
     }
   }, [state, router, type, setOpen]);
 
-  const { grades, classes } = relatedData;
+  const { grades, classes, parents = [] } = relatedData;
 
   return (
     <form className="flex flex-col gap-8" onSubmit={onSubmit}>
@@ -161,13 +166,25 @@ const StudentForm = ({
           error={errors?.birthday as FieldError | undefined}
           type="date"
         />
-        <InputField
-          label="Parent Id"
-          name="parentId"
-          defaultValue={data?.parentId}
-          register={register}
-          error={errors.parentId}
-        />
+        <div className="flex flex-col gap-2 w-full md:w-1/4">
+          <label className="text-xs text-gray-500">Parent</label>
+          <select
+            className="ring-[1.5px] ring-gray-300 p-2 rounded-md text-sm w-full"
+            {...register("parentId")}
+            defaultValue={data?.parentId || ""}
+          >
+            <option value="">Select a parent</option>
+            {parents.map((parent: { id: string; name: string; surname: string; idNumber: string | null }) => (
+              <option value={parent.id} key={parent.id}>
+                {parent.name} {parent.surname}
+                {parent.idNumber ? ` (${parent.idNumber})` : ""}
+              </option>
+            ))}
+          </select>
+          {errors.parentId?.message && (
+            <p className="text-xs text-red-400">{errors.parentId.message.toString()}</p>
+          )}
+        </div>
         {data && (
           <InputField
             label="Id"
@@ -242,11 +259,22 @@ const StudentForm = ({
           )}
         </div>
       </div>
-      {state.error && (
-        <span className="text-red-500">Something went wrong!</span>
+      {Object.keys(errors).length > 0 && (
+        <div className="text-red-500 text-xs bg-red-50 border border-red-200 rounded-md p-3">
+          Please fix the highlighted fields before creating the student.
+        </div>
       )}
-      <button type="submit" className="bg-blue-400 text-white p-2 rounded-md">
-        {type === "create" ? "Create" : "Update"}
+      {state.error && (
+        <span className="text-red-500">
+          {state.message || "Unable to create the student. Check the form and try again."}
+        </span>
+      )}
+      <button
+        type="submit"
+        disabled={isPending || state.success}
+        className="bg-blue-400 text-white p-2 rounded-md disabled:opacity-60"
+      >
+        {isPending ? "Creating..." : type === "create" ? "Create" : "Update"}
       </button>
     </form>
   );

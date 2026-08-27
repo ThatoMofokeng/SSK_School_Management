@@ -5,7 +5,7 @@ const nextConfig = {
             { hostname: "images.pexels.com" },
             { hostname: "res.cloudinary.com" }
         ],
-        unoptimized: true
+        formats: ["image/avif", "image/webp"],
     },
 
     // Security headers

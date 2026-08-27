@@ -1,5 +1,5 @@
-import { UserButton } from "@clerk/nextjs";
-import { currentUser, auth } from "@clerk/nextjs/server";
+import NavbarUserButton from "./NavbarUserButton";
+import { currentUser } from "@clerk/nextjs/server";
 import Image from "next/image";
 import Link from "next/link";
 import { cookies } from "next/headers";
@@ -7,10 +7,11 @@ import prisma from "@/lib/prisma";
 
 const Navbar = async () => {
 
+    // currentUser() already gives us the id and public metadata, so there is
+    // no need to make a second Clerk auth() request for the same navbar.
     const user = await currentUser();
-    const { userId, sessionClaims } = await auth();
-    const role = (sessionClaims?.metadata as { role?: string })?.role;
-    const currentUserId = userId;
+    const currentUserId = user?.id ?? null;
+    const role = user?.publicMetadata?.role as string | undefined;
 
     // How many announcements this user hasn't opened the list since.
     // "Seen" is tracked via a cookie set by MarkAnnouncementsSeen when
@@ -74,7 +75,7 @@ const Navbar = async () => {
                 </div>
                 {/*<Image src="/avatar.png" alt="" width={36} height={36} className="rounded-full" />*/}
 
-                <UserButton />
+                <NavbarUserButton />
 
             </div>
 

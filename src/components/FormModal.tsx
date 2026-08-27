@@ -5,9 +5,12 @@ import {
   deleteAssignment,
   deleteAttendance,
   deleteClass,
+  deleteEvent,
   deleteExam,
   deleteLesson,
   deleteMessage,
+  deleteParent,
+  deleteResult,
   deleteStudent,
   deleteSubject,
   deleteTeacher,
@@ -19,16 +22,6 @@ import { Dispatch, SetStateAction, useActionState, useEffect, useState } from "r
 //import { useFormState } from "react-dom";
 import { toast } from "react-toastify";
 import { FormContainerProps } from "./FormContainer";
-
-// Safety no-op for tables that don't have a real delete action wired up
-// yet. Previously these all pointed at `deleteSubject`, which meant
-// clicking delete on a parent/announcement/etc. would actually delete an
-// unrelated Subject row and report success. This returns a clean error
-// instead until the real actions are built.
-const notImplementedAction = async (
-  _currentState: { success: boolean; error: boolean },
-  _formData: FormData
-) => ({ success: false, error: true });
 
 const deleteActionMap: {
   [key: string]: (
@@ -43,13 +36,12 @@ const deleteActionMap: {
   exam: deleteExam,
   message: deleteMessage,
   announcement: deleteAnnouncement,
-  // TODO: OTHER DELETE ACTIONS — replace with real actions once built
-  parent: notImplementedAction,
+  parent: deleteParent,
   lesson: deleteLesson,
   assignment: deleteAssignment,
-  result: notImplementedAction,
+  result: deleteResult,
   attendance: deleteAttendance,
-  event: notImplementedAction,
+  event: deleteEvent,
 };
 
 // USE LAZY LOADING
@@ -85,6 +77,15 @@ const AssignmentForm = dynamic(() => import("./Forms/AssignmentForm"), {
   loading: () => <h1>Loading...</h1>,
 });
 const LessonForm = dynamic(() => import("./Forms/LessonForm"), {
+  loading: () => <h1>Loading...</h1>,
+});
+const ParentForm = dynamic(() => import("./Forms/Parentform"), {
+  loading: () => <h1>Loading...</h1>,
+});
+const EventForm = dynamic(() => import("./Forms/EventForm"), {
+  loading: () => <h1>Loading...</h1>,
+});
+const ResultForm = dynamic(() => import("./Forms/ResultForm"), {
   loading: () => <h1>Loading...</h1>,
 });
 // TODO: OTHER FORMS
@@ -172,6 +173,30 @@ const forms: {
   ),
   lesson: (setOpen, type, data, relatedData) => (
     <LessonForm
+      type={type}
+      data={data}
+      setOpen={setOpen}
+      relatedData={relatedData}
+    />
+  ),
+  parent: (setOpen, type, data, relatedData) => (
+    <ParentForm
+      type={type}
+      data={data}
+      setOpen={setOpen}
+      relatedData={relatedData}
+    />
+  ),
+  event: (setOpen, type, data, relatedData) => (
+    <EventForm
+      type={type}
+      data={data}
+      setOpen={setOpen}
+      relatedData={relatedData}
+    />
+  ),
+  result: (setOpen, type, data, relatedData) => (
+    <ResultForm
       type={type}
       data={data}
       setOpen={setOpen}
