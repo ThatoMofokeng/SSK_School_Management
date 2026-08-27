@@ -18,8 +18,10 @@ import {
   TeacherSchema,
 } from "./formValidationSchemas";
 import prisma from "./prisma";
+import { Prisma } from "@prisma/client";
 import { clerkClient } from "@clerk/nextjs/server";
-import { requireRole, Role } from "./authz";
+import { isClerkAPIResponseError } from "@clerk/nextjs/errors";
+import { requireRole, Role, AuthzError } from "./authz";
 import { logError } from "./logger";
 import { checkRateLimit, RateLimitError } from "./ratelimit";
 
@@ -339,58 +341,164 @@ export const createStudent = async (
   currentState: CurrentState,
   data: StudentSchema
 ) => {
+  let clerkUserId: string | null = null;
+
   try {
     const { userId } = await requireRole("admin");
     await checkRateLimit(userId, "create-student");
 
-    const classItem = await prisma.class.findUnique({
-      where: { id: data.classId },
-      include: { _count: { select: { students: true } } },
+    const username = data.username.trim();
+    const email = data.email?.trim() || undefined;
+
+    if (!data.password || data.password.length < 8) {
+      return { success: false, error: true, message: "Student password must be at least 8 characters." };
+    }
+
+    // parentId is the Parent primary key (the Clerk user id), not the
+    // parent's South African ID number. Resolve an ID number if an older
+    // form/client still sends one.
+    let parentId = data.parentId.trim();
+    let parent = await prisma.parent.findUnique({
+      where: { id: parentId },
+      select: { id: true },
     });
 
-    if (classItem && classItem.capacity === classItem._count.students) {
-      return { success: false, error: true };
+    if (!parent && /^\d{13}$/.test(parentId)) {
+      parent = await prisma.parent.findUnique({
+        where: { idNumber: parentId },
+        select: { id: true },
+      });
+      if (parent) parentId = parent.id;
+    }
+
+    if (!parent) {
+      return {
+        success: false,
+        error: true,
+        message: "The selected parent does not exist. Please select an existing parent.",
+      };
+    }
+
+    const duplicate = await prisma.student.findFirst({
+      where: {
+        OR: [
+          { username },
+          ...(email ? [{ email }] : []),
+          ...(data.phone?.trim() ? [{ phone: data.phone.trim() }] : []),
+        ],
+      },
+      select: { username: true, email: true, phone: true },
+    });
+
+    if (duplicate) {
+      const field = duplicate.username === username
+        ? "username"
+        : duplicate.email === email
+          ? "email"
+          : "phone number";
+      return { success: false, error: true, message: `A student with that ${field} already exists.` };
+    }
+
+    const classItem = await prisma.class.findUnique({
+      where: { id: data.classId },
+      select: { capacity: true, _count: { select: { students: true } } },
+    });
+
+    if (!classItem) {
+      return { success: false, error: true, message: "The selected class does not exist." };
+    }
+
+    if (classItem._count.students >= classItem.capacity) {
+      return { success: false, error: true, message: "The selected class is already at full capacity." };
     }
 
     const client = await clerkClient();
-    const user = await client.users.createUser({
-      username: data.username,
-      password: data.password,
-      firstName: data.name,
-      lastName: data.surname,
-      // See note in createTeacher: pass the email through so the Clerk
-      // account isn't left "incomplete" and forced into a /sign-in/continue
-      // step the sign-in UI doesn't handle.
-      ...(data.email ? { emailAddress: [data.email] } : {}),
-      publicMetadata: { role: "student" },
-    });
 
-    await prisma.student.create({
-      data: {
-        id: user.id,
-        username: data.username,
-        name: data.name,
-        surname: data.surname,
-        email: data.email || null,
-        phone: data.phone || null,
-        address: data.address,
-        img: data.img || null,
-        sex: data.sex,
-        birthday: data.birthday,
-        gradeId: data.gradeId,
-        classId: data.classId,
-        parentId: data.parentId,
-      },
-    });
+    try {
+      const user = await client.users.createUser({
+        username,
+        password: data.password,
+        firstName: data.name.trim(),
+        lastName: data.surname.trim(),
+        ...(email ? { emailAddress: [email] } : {}),
+        publicMetadata: { role: "student" },
+      });
+
+      clerkUserId = user.id;
+
+      await prisma.student.create({
+        data: {
+          id: user.id,
+          username,
+          name: data.name.trim(),
+          surname: data.surname.trim(),
+          email: email || null,
+          phone: data.phone?.trim() || null,
+          address: data.address.trim(),
+          img: data.img || null,
+          sex: data.sex,
+          birthday: data.birthday,
+          gradeId: data.gradeId,
+          classId: data.classId,
+          parentId,
+        },
+      });
+    } catch (err) {
+      if (isClerkAPIResponseError(err)) {
+        const clerkMessage = err.errors?.[0]?.longMessage || err.errors?.[0]?.message;
+        logError("Clerk rejected student account creation", err, "actions", {
+          clerkUserId,
+        });
+        return {
+          success: false,
+          error: true,
+          message: clerkMessage || "Clerk rejected the student account. Check the username, email and password.",
+        };
+      }
+      throw err;
+    }
 
     revalidatePath("/list/students");
     return { success: true, error: false };
   } catch (err) {
+    if (clerkUserId) {
+      try {
+        const client = await clerkClient();
+        await client.users.deleteUser(clerkUserId);
+      } catch (cleanupError) {
+        logError("Failed to roll back Clerk student after database error", cleanupError, "actions");
+      }
+    }
+
     if (err instanceof RateLimitError) {
       return { success: false, error: true, message: err.message };
     }
-    logError("Server action failed", err, "actions");
-    return { success: false, error: true };
+
+    if (err instanceof AuthzError) {
+      return {
+        success: false,
+        error: true,
+        message: err.message === "FORBIDDEN"
+          ? "You do not have permission to create a student."
+          : "Your session has expired. Please sign in again.",
+      };
+    }
+
+    if (err instanceof Prisma.PrismaClientKnownRequestError) {
+      if (err.code === "P2002") {
+        return { success: false, error: true, message: "A student with one of these unique details already exists." };
+      }
+      if (err.code === "P2003") {
+        return { success: false, error: true, message: "The selected parent, grade or class is invalid." };
+      }
+    }
+
+    logError("Server action failed while creating student", err, "actions");
+    return {
+      success: false,
+      error: true,
+      message: "Unable to create the student. Please try again.",
+    };
   }
 };
 
@@ -482,31 +590,81 @@ export const createParent = async (
   currentState: CurrentState,
   data: ParentSchema
 ) => {
+  let clerkUserId: string | null = null;
+
   try {
     const { userId } = await requireRole("admin");
     await checkRateLimit(userId, "create-parent");
 
-    const client = await clerkClient();
-    const user = await client.users.createUser({
-      username: data.username,
-      password: data.password,
-      firstName: data.name,
-      lastName: data.surname,
-      ...(data.email ? { emailAddress: [data.email] } : {}),
-      publicMetadata: { role: "parent" },
+    const username = data.username.trim();
+    const name = data.name.trim();
+    const surname = data.surname.trim();
+    const email = data.email?.trim() || "";
+    const phone = data.phone.trim();
+    const address = data.address.trim();
+    const idNumber = data.idNumber.trim();
+
+    if (!data.password || data.password.length < 8) {
+      return { success: false, error: true, message: "Password must be at least 8 characters long." };
+    }
+
+    // Fast local duplicate check before making the remote Clerk request.
+    const duplicate = await prisma.parent.findFirst({
+      where: {
+        OR: [
+          { username },
+          ...(email ? [{ email }] : []),
+          { phone },
+          { idNumber },
+        ],
+      },
+      select: { username: true, email: true, phone: true, idNumber: true },
     });
 
-    await prisma.parent.create({
-      data: {
-        id: user.id,
-        username: data.username,
-        name: data.name,
-        surname: data.surname,
-        email: data.email || null,
-        phone: data.phone,
-        address: data.address,
-      },
+    if (duplicate) {
+      const field = duplicate.username === username
+        ? "username"
+        : duplicate.email === email && email
+          ? "email"
+          : duplicate.phone === phone
+            ? "phone number"
+            : "ID/passport number";
+      return { success: false, error: true, message: `That ${field} is already registered to another parent.` };
+    }
+
+    const client = await clerkClient();
+    const user = await client.users.createUser({
+      username,
+      password: data.password,
+      firstName: name,
+      lastName: surname,
+      ...(email ? { emailAddress: [email] } : {}),
+      publicMetadata: { role: "parent" },
     });
+    clerkUserId = user.id;
+
+    try {
+      await prisma.parent.create({
+        data: {
+          id: user.id,
+          username,
+          name,
+          surname,
+          email: email || null,
+          phone,
+          address,
+          idType: data.idType,
+          idNumber,
+        },
+      });
+    } catch (dbError) {
+      try {
+        await client.users.deleteUser(user.id);
+      } catch (rollbackError) {
+        logError("Failed to roll back Clerk parent after database failure", rollbackError, "actions", { clerkUserId: user.id });
+      }
+      throw dbError;
+    }
 
     revalidatePath("/list/parents");
     return { success: true, error: false };
@@ -514,8 +672,72 @@ export const createParent = async (
     if (err instanceof RateLimitError) {
       return { success: false, error: true, message: err.message };
     }
+
+    // Clerk's SDK exposes structured 422 validation errors. Always convert
+    // those into a plain serializable string before returning from a Server
+    // Action. Returning the Clerk error object itself can break the RSC/server
+    // action response and surface in the browser as "unexpected response".
+    if (isClerkAPIResponseError(err)) {
+      const message = err.errors
+        .map((e) => {
+          const code = e.code;
+          const longMessage = e.longMessage || e.message;
+          switch (code) {
+            case "form_identifier_exists":
+              return "That username or email is already registered in Clerk.";
+            case "form_username_invalid_character":
+              return "The username contains characters that Clerk does not allow.";
+            case "form_username_invalid_length":
+              return "The username length is not allowed by Clerk.";
+            case "form_username_needs_non_number_char":
+              return "The username must contain at least one non-numeric character.";
+            case "form_username_cannot_be_phone_number":
+              return "The username cannot be a phone number.";
+            case "form_password_length_too_short":
+              return "The password is too short.";
+            case "form_password_length_too_long":
+              return "The password is too long.";
+            case "form_password_no_uppercase":
+              return "The password must contain an uppercase character.";
+            case "form_password_pwned":
+            case "form_password_compromised":
+              return "Choose a different password. Clerk rejected this password because it is compromised or has appeared in a known breach.";
+            case "form_password_matches_identifier":
+              return "The password cannot be the same as the username, email or phone number.";
+            case "form_data_missing":
+              return "Clerk is requiring an account field that is not enabled or supplied. Check your Clerk sign-in settings.";
+            case "form_param_value_invalid":
+            case "form_param_format_invalid":
+              return longMessage || "One of the account fields has an invalid format.";
+            default:
+              return longMessage;
+          }
+        })
+        .filter((m): m is string => Boolean(m));
+
+      logError("Clerk rejected parent account creation", err, "actions", { clerkUserId });
+      return {
+        success: false,
+        error: true,
+        message: message.join(" ") || "Clerk rejected the parent account. Check the username, email and password.",
+      };
+    }
+
+    if (
+      err instanceof Prisma.PrismaClientKnownRequestError &&
+      err.code === "P2002"
+    ) {
+      const target = err.meta?.target as string[] | string | undefined;
+      const targetText = Array.isArray(target) ? target.join(",") : target || "field";
+      const field = targetText.includes("idNumber") ? "ID/passport number"
+        : targetText.includes("email") ? "email"
+        : targetText.includes("phone") ? "phone number"
+        : "username";
+      return { success: false, error: true, message: `That ${field} is already registered to another parent.` };
+    }
+
     logError("Server action failed", err, "actions");
-    return { success: false, error: true };
+    return { success: false, error: true, message: "We could not create the parent. Please try again." };
   }
 };
 
@@ -549,6 +771,8 @@ export const updateParent = async (
         email: data.email || null,
         phone: data.phone,
         address: data.address,
+        idType: data.idType,
+        idNumber: data.idNumber,
       },
     });
 
@@ -557,6 +781,17 @@ export const updateParent = async (
   } catch (err) {
     if (err instanceof RateLimitError) {
       return { success: false, error: true, message: err.message };
+    }
+    if (
+      err instanceof Prisma.PrismaClientKnownRequestError &&
+      err.code === "P2002" &&
+      (err.meta?.target as string[] | undefined)?.includes("idNumber")
+    ) {
+      return {
+        success: false,
+        error: true,
+        message: "That ID/passport number is already registered to another parent.",
+      };
     }
     logError("Server action failed", err, "actions");
     return { success: false, error: true };

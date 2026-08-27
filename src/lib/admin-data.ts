@@ -22,45 +22,37 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
     const { userId, sessionClaims } = await auth();
     const role = (sessionClaims?.metadata as { role?: string })?.role;
 
-    // Precompute the attendance window before the transaction — this is
-    // plain JS date math, not a query, so it doesn't need to run inside it.
-    const today = new Date();
-    const dayOfWeek = today.getDay();
-    const daysSinceMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-    const lastMonday = new Date(today);
-    lastMonday.setDate(today.getDate() - daysSinceMonday);
-
-    // Genuinely run these as a single batched transaction on ONE pooled
-    // connection (prisma.$transaction), rather than firing 7 independent
-    // prisma calls via Promise.all. Promise.all does NOT share a
-    // connection — each awaited call checks out its own connection from
-    // the pool concurrently. With the shared layout's Navbar also running
-    // its own unseen-announcements count on every page load, the old
-    // Promise.all version routinely needed 7-8 simultaneous connections
-    // for one page render, which exceeds Prisma's default engine pool
-    // size (num_physical_cpus * 2 + 1, commonly 5) and produces exactly
-    // the "Timed out fetching a new connection from the connection pool"
-    // error. $transaction([...]) runs the same queries sequentially on a
-    // single reserved connection instead.
+    // Use a single transaction to fetch all data efficiently
     const [
-      adminCount,
-      teacherCount,
-      studentCount,
-      parentCount,
-      studentStatsRaw,
+      userCounts,
+      studentStats,
       announcements,
-      attendanceData,
-    ] = await prisma.$transaction([
-      prisma.admin.count(),
-      prisma.teacher.count(),
-      prisma.student.count(),
-      prisma.parent.count(),
+      attendanceData
+    ] = await Promise.all([
+      // User counts
+      Promise.all([
+        prisma.admin.count(),
+        prisma.teacher.count(),
+        prisma.student.count(),
+        prisma.parent.count(),
+      ]).then(([admin, teacher, student, parent]) => ({
+        admin,
+        teacher,
+        student,
+        parent,
+      })),
 
+      // Student statistics
       prisma.student.groupBy({
         by: ["sex"],
         _count: true,
+      }).then(data => {
+        const boys = data.find((d) => d.sex === "MALE")?._count || 0;
+        const girls = data.find((d) => d.sex === "FEMALE")?._count || 0;
+        return { boys, girls };
       }),
 
+      // Announcements
       prisma.announcement.findMany({
         take: 3,
         orderBy: { date: "desc" },
@@ -68,7 +60,7 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
           ...(role !== "admin" && {
             OR: [
               { classId: null },
-              {
+              { 
                 class: {
                   OR: [
                     { lessons: { some: { teacherId: userId! } } },
@@ -82,30 +74,27 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
         },
       }),
 
-      prisma.attandance.findMany({
-        where: {
-          date: {
-            gte: lastMonday,
+      // Attendance data
+      (async () => {
+        const today = new Date();
+        const dayOfWeek = today.getDay();
+        const daysSinceMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+        const lastMonday = new Date(today);
+        lastMonday.setDate(today.getDate() - daysSinceMonday);
+
+        return prisma.attandance.findMany({
+          where: {
+            date: {
+              gte: lastMonday,
+            },
           },
-        },
-        select: {
-          date: true,
-          present: true,
-        },
-      }),
+          select: {
+            date: true,
+            present: true,
+          },
+        });
+      })(),
     ]);
-
-    const userCounts = {
-      admin: adminCount,
-      teacher: teacherCount,
-      student: studentCount,
-      parent: parentCount,
-    };
-
-    const studentStats = {
-      boys: studentStatsRaw.find((d) => d.sex === "MALE")?._count || 0,
-      girls: studentStatsRaw.find((d) => d.sex === "FEMALE")?._count || 0,
-    };
 
     return {
       userCounts,
@@ -124,3 +113,4 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
     };
   }
 }
+

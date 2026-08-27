@@ -76,27 +76,78 @@ export const studentSchema = z.object({
 
 export type StudentSchema = z.infer<typeof studentSchema>;
 
-export const parentSchema = z.object({
-  id: z.string().optional(),
-  username: z
-    .string()
-    .min(3, { message: "Username must be at least 3 characters long!" })
-    .max(20, { message: "Username must be at most 20 characters long!" }),
-  password: z
-    .string()
-    .min(8, { message: "Password must be at least 8 characters long!" })
-    .optional()
-    .or(z.literal("")),
-  name: z.string().min(1, { message: "First name is required!" }),
-  surname: z.string().min(1, { message: "Last name is required!" }),
-  email: z
-    .string()
-    .email({ message: "Invalid email address!" })
-    .optional()
-    .or(z.literal("")),
-  phone: z.string().min(1, { message: "Phone is required!" }),
-  address: z.string().min(1, { message: "Address is required!" }),
-});
+// Validates a South African 13-digit ID number: checks the embedded
+// YYMMDD date is plausible, then verifies the Luhn-style checksum digit
+// SA ID numbers use (catches typos - a simple "13 digits" check would
+// accept plenty of numbers that are guaranteed invalid).
+function isValidSouthAfricanId(id: string): boolean {
+  if (!/^\d{13}$/.test(id)) return false;
+
+  const month = parseInt(id.slice(2, 4), 10);
+  const day = parseInt(id.slice(4, 6), 10);
+  if (month < 1 || month > 12) return false;
+  if (day < 1 || day > 31) return false;
+
+  const digits = id.split("").map(Number);
+
+  let oddSum = 0;
+  for (let i = 0; i < 12; i += 2) oddSum += digits[i];
+
+  let evenConcat = "";
+  for (let i = 1; i < 12; i += 2) evenConcat += digits[i];
+  const evenDoubled = (parseInt(evenConcat, 10) * 2).toString();
+  const evenSum = evenDoubled
+    .split("")
+    .reduce((sum, d) => sum + parseInt(d, 10), 0);
+
+  const checkDigit = (10 - ((oddSum + evenSum) % 10)) % 10;
+  return checkDigit === digits[12];
+}
+
+export const parentSchema = z
+  .object({
+    id: z.string().optional(),
+    username: z
+      .string()
+      .min(3, { message: "Username must be at least 3 characters long!" })
+      .max(20, { message: "Username must be at most 20 characters long!" }),
+    password: z
+      .string()
+      .min(8, { message: "Password must be at least 8 characters long!" })
+      .optional()
+      .or(z.literal("")),
+    name: z.string().min(1, { message: "First name is required!" }),
+    surname: z.string().min(1, { message: "Last name is required!" }),
+    email: z
+      .string()
+      .email({ message: "Invalid email address!" })
+      .optional()
+      .or(z.literal("")),
+    phone: z.string().min(1, { message: "Phone is required!" }),
+    address: z.string().min(1, { message: "Address is required!" }),
+    idType: z.enum(["SA_ID", "PASSPORT"], {
+      message: "Select an ID type!",
+    }),
+    idNumber: z
+      .string()
+      .min(1, { message: "ID / passport number is required!" }),
+  })
+  .superRefine((val, ctx) => {
+    if (val.idType === "SA_ID" && !isValidSouthAfricanId(val.idNumber)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["idNumber"],
+        message: "Enter a valid 13-digit South African ID number.",
+      });
+    }
+    if (val.idType === "PASSPORT" && val.idNumber.trim().length < 5) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["idNumber"],
+        message: "That passport number looks too short.",
+      });
+    }
+  });
 
 export type ParentSchema = z.infer<typeof parentSchema>;
 

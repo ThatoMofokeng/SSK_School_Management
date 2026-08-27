@@ -64,6 +64,8 @@ model Parent {
   email     String?   @unique
   phone     String    @unique
   address   String
+  idType    IdType?
+  idNumber  String?   @unique
   createdAt DateTime  @default(now())
   students  Student[]
 }
@@ -174,6 +176,7 @@ model ContentFile {
   createdAt    DateTime @default(now())
 
   @@index([uploadedBy])
+  @@index([uploadedBy, createdAt])
 }
 
 model Result {
@@ -212,6 +215,8 @@ model Event {
   endTime     DateTime
   classId     Int?
   class       Class?   @relation(fields: [classId], references: [id])
+
+  @@index([startTime])
 }
 
 model Announcement {
@@ -222,6 +227,8 @@ model Announcement {
   createdAt   DateTime @default(now())
   classId     Int?
   class       Class?   @relation(fields: [classId], references: [id])
+
+  @@index([createdAt, classId])
 }
 
 // Admin/Teacher/Student/Parent are separate tables (each keyed by the
@@ -252,6 +259,11 @@ model Message {
 enum UserSex {
   MALE
   FEMALE
+}
+
+enum IdType {
+  SA_ID
+  PASSPORT
 }
 
 enum MessageRole {
